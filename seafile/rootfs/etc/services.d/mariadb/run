@@ -1,0 +1,17 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+
+set -euo pipefail
+
+MYSQL_DATA="/var/lib/mysql"
+
+mkdir -p "${MYSQL_DATA}" /run/mysqld
+chown -R mysql:mysql "${MYSQL_DATA}" /run/mysqld
+
+if [ ! -d "${MYSQL_DATA}/mysql" ]; then
+    bashio::log.info "Initializing MariaDB data directory..."
+    mysql_install_db --user=mysql --datadir="${MYSQL_DATA}" > /dev/null 2>&1
+fi
+
+bashio::log.info "Starting MariaDB..."
+exec mysqld_safe --datadir="${MYSQL_DATA}" --skip-networking=0

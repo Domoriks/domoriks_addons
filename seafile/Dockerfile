@@ -56,12 +56,18 @@ RUN pip3 install --no-cache-dir --break-system-packages \
 
 # ── Nginx config template ──────────────────────────────────────────────────
 COPY rootfs/ /
-
-# ── Copy scripts ──────────────────────────────────────────────────────────
-COPY run.sh /run.sh
-RUN chmod +x /run.sh
+RUN chmod +x \
+    /etc/services.d/mariadb/run \
+    /etc/services.d/mariadb/finish \
+    /etc/services.d/redis/run \
+    /etc/services.d/redis/finish \
+    /etc/services.d/seafile/run \
+    /etc/services.d/seafile/finish \
+    /etc/services.d/nginx/run \
+    /etc/services.d/nginx/finish \
+    && rm -f /run.sh
 
 # ── Data dir ──────────────────────────────────────────────────────────────
 VOLUME ["/share/seafile"]
 
-CMD [ "/run.sh" ]
+ENTRYPOINT ["/init"]

@@ -3,7 +3,7 @@ name: "Seafile"
 description: "Seafile Community Edition – self-hosted file sync and share server"
 version: "1.0.0"
 slug: "seafile"
-init: false
+init: true
 homeassistant_api: false
 auth_api: false
 ingress: true

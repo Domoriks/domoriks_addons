@@ -1,0 +1,14 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+
+readonly exit_code_service="$1"
+readonly exit_code_signal="$2"
+
+bashio::log.info \
+    "Nginx service exited with code ${exit_code_service}" \
+    "(signal ${exit_code_signal})"
+
+if [[ "${exit_code_service}" -ne 0 ]] && [[ "${exit_code_service}" -ne 256 ]]; then
+    bashio::log.warning "Halting add-on because Nginx exited unexpectedly."
+    exec /run/s6/basedir/bin/halt
+fi
