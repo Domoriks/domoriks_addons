@@ -14,4 +14,4 @@ configuration:
     description: Database name to create on first start.
   listen_addresses:
     name: Listen addresses
-    description: PostgreSQL listen_addresses setting, for example * or 127.0.0.1.
+    description: PostgreSQL listen_addresses setting. Use *, localhost, or IP addresses. Hostnames are not supported.
