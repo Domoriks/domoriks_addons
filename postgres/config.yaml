@@ -1,7 +1,7 @@
 ---
 name: "Postgres for Immich"
 description: "PostgreSQL database addon intended for Immich"
-version: "0.1.4"
+version: "0.1.5"
 slug: "postgres"
 init: false
 homeassistant_api: false
