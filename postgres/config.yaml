@@ -14,8 +14,6 @@ arch:
   - amd64
 
 startup: system
-services:
-  - postgres:provide
 timeout: 300
 
 map:
