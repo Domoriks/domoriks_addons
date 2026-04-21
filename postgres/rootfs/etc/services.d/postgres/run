@@ -1,0 +1,13 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+
+set -euo pipefail
+
+bashio::log.info "Starting PostgreSQL..."
+/usr/local/bin/postgres-post-init &
+
+exec gosu postgres "${POSTGRES_BIN_DIR}/postgres" \
+    -D "${PGDATA}" \
+    -c "listen_addresses=${POSTGRES_LISTEN_ADDRESSES}" \
+    -c "port=5432" \
+    -c "unix_socket_directories=/var/run/postgresql"
