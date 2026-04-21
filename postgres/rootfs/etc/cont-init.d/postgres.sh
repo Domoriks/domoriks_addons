@@ -89,7 +89,7 @@ chown -R postgres:postgres "${DATA_LOCATION}" /var/run/postgresql
 if bashio::var.true "${NEW_INSTALL}"; then
     bashio::log.info "Initializing PostgreSQL data directory..."
     gosu postgres "${POSTGRES_BIN_DIR}/initdb" \
-        --username=postgres \
+    --username="${POSTGRES_USER}" \
         --auth-local=trust \
         --auth-host=scram-sha-256 \
         -D "${DATA_LOCATION}" > /dev/null

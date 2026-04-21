@@ -7,14 +7,20 @@ sql_escape_literal() {
     printf '%s' "$1" | sed "s/'/''/g"
 }
 
+pg_isready_user() {
+    PGPASSWORD="${ADDON_POSTGRES_PASSWORD}" \
+        gosu postgres "${POSTGRES_BIN_DIR}/pg_isready" \
+            -q -h /var/run/postgresql -p 5432 -U "${ADDON_POSTGRES_USER}" -d postgres
+}
+
 for _ in $(seq 1 60); do
-    if gosu postgres "${POSTGRES_BIN_DIR}/pg_isready" -q -h /var/run/postgresql -p 5432; then
+    if pg_isready_user; then
         break
     fi
     sleep 1
 done
 
-if ! gosu postgres "${POSTGRES_BIN_DIR}/pg_isready" -q -h /var/run/postgresql -p 5432; then
+if ! pg_isready_user; then
     bashio::log.error "PostgreSQL did not become ready in time; skipping post-start initialization."
     exit 1
 fi
@@ -25,10 +31,11 @@ role_name="${ADDON_POSTGRES_USER}"
 database_name="${ADDON_POSTGRES_DB}"
 password_literal="$(sql_escape_literal "${ADDON_POSTGRES_PASSWORD}")"
 
-gosu postgres "${POSTGRES_BIN_DIR}/psql" \
-    --username postgres \
-    --dbname postgres \
-    --set ON_ERROR_STOP=1 <<SQL
+if ! PGPASSWORD="${ADDON_POSTGRES_PASSWORD}" \
+    gosu postgres "${POSTGRES_BIN_DIR}/psql" \
+        --username "${ADDON_POSTGRES_USER}" \
+        --dbname postgres \
+        --set ON_ERROR_STOP=1 <<SQL
 DO \$\$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '${role_name}') THEN
@@ -44,6 +51,9 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '${database_name}')\
 
 GRANT ALL PRIVILEGES ON DATABASE "${database_name}" TO "${role_name}";
 SQL
+then
+    bashio::log.warning "Post-start role/database bootstrap skipped; continuing with existing cluster settings."
+fi
 
 payload=$(\
     bashio::var.json \
