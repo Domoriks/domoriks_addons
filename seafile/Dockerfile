@@ -1,4 +1,4 @@
-ARG BUILD_FROM
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-ubuntu:latest
 FROM $BUILD_FROM
 
 # ── Install system dependencies ────────────────────────────────────────────
@@ -59,8 +59,7 @@ COPY rootfs/ /
 
 # ── Copy scripts ──────────────────────────────────────────────────────────
 COPY run.sh /run.sh
-COPY generate_config.sh /generate_config.sh
-RUN chmod +x /run.sh /generate_config.sh
+RUN chmod +x /run.sh
 
 # ── Data dir ──────────────────────────────────────────────────────────────
 VOLUME ["/share/seafile"]
