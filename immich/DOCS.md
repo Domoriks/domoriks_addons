@@ -20,7 +20,7 @@ For the database layer, use the **Postgres for Immich** addon in this repository
 | `upload_location` | `/share/immich/library` | Path for uploaded media |
 | `model_cache_location` | `/share/immich/model-cache` | Path for ML model cache |
 | `tz` | `UTC` | Time zone for logs/scheduled jobs |
-| `db_host` | `postgres` | PostgreSQL host |
+| `db_host` | `postgres` | PostgreSQL host (resolvable hostname or IP, not `*`) |
 | `db_port` | `5432` | PostgreSQL port |
 | `db_username` | `immich` | PostgreSQL username |
 | `db_password` | `immich` | PostgreSQL password |

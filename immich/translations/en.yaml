@@ -11,7 +11,7 @@ configuration:
     description: Time zone identifier, for example UTC or Europe/Amsterdam.
   db_host:
     name: Database host
-    description: Hostname or IP of the PostgreSQL server.
+    description: Resolvable hostname or IP of the PostgreSQL server. Do not use *.
   db_port:
     name: Database port
     description: Port of the PostgreSQL server.

@@ -17,7 +17,7 @@ This addon provides a PostgreSQL database intended for the Immich addon.
 | `postgres_user` | `immich` | PostgreSQL username |
 | `postgres_password` | `immich` | PostgreSQL password |
 | `postgres_db` | `immich` | PostgreSQL database name |
-| `listen_addresses` | `*` | PostgreSQL listen addresses (`*`, `localhost`, or IPs; hostnames are not supported) |
+| `listen_addresses` | `*` | PostgreSQL server bind addresses (`*`, `localhost`, or IPs) |
 
 ## Notes
 
