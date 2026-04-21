@@ -67,7 +67,8 @@ RUN chmod +x \
     /etc/services.d/redis/run \
     /etc/services.d/redis/finish \
     /etc/services.d/seafile/run \
-    /etc/services.d/seafile/finish
+    /etc/services.d/seafile/finish \
+    /scripts/start.sh
 
 VOLUME ["/share/seafile"]
 
