@@ -4,14 +4,50 @@
 set -euo pipefail
 
 SEAFILE_ROOT="/share/seafile"
-SEAFILE_DATA="${SEAFILE_ROOT}/seafile-data"
-SEAHUB_DATA="${SEAFILE_ROOT}/seahub-data"
-CONF_DIR="${SEAFILE_ROOT}/conf"
-LOGS_DIR="${SEAFILE_ROOT}/logs"
-SEAFILE_SERVER="/opt/seafile"
-MARKER_FILE="${SEAFILE_ROOT}/.initialized"
+SEAFILE_ENV_URL="https://manual.seafile.com/13.0/repo/docker/ce/env"
+SEAFILE_YML_URL="https://manual.seafile.com/13.0/repo/docker/ce/seafile-server.yml"
+SEAFILE_ENV_FILE="${SEAFILE_ROOT}/.env"
+SEAFILE_YML_FILE="${SEAFILE_ROOT}/seafile-server.yml"
 
-mkdir -p "${SEAFILE_DATA}" "${SEAHUB_DATA}" "${CONF_DIR}" "${LOGS_DIR}"
+mkdir -p "${SEAFILE_ROOT}"
+
+# ── Download official config templates for reference (first run only) ─────
+if [ ! -f "${SEAFILE_ENV_FILE}" ]; then
+    bashio::log.info "Downloading official Seafile .env template..."
+    wget -q -O "${SEAFILE_ENV_FILE}" "${SEAFILE_ENV_URL}"
+fi
+
+if [ ! -f "${SEAFILE_YML_FILE}" ]; then
+    bashio::log.info "Downloading official Seafile compose template..."
+    wget -q -O "${SEAFILE_YML_FILE}" "${SEAFILE_YML_URL}"
+fi
+
+# ── Wait for bundled MariaDB ───────────────────────────────────────────────
+bashio::log.info "Waiting for MariaDB..."
+for _ in $(seq 1 60); do
+    mysqladmin ping --silent > /dev/null 2>&1 && break
+    sleep 1
+done
+
+# ── Wait for bundled Redis (when used as cache) ────────────────────────────
+if [ "${CACHE_PROVIDER:-redis}" = "redis" ]; then
+    bashio::log.info "Waiting for Redis..."
+    redis_args=(-h "${REDIS_HOST:-127.0.0.1}" -p "${REDIS_PORT:-6379}")
+    if [ -n "${REDIS_PASSWORD:-}" ]; then
+        redis_args+=(-a "${REDIS_PASSWORD}")
+    fi
+    for _ in $(seq 1 60); do
+        redis-cli "${redis_args[@]}" ping > /dev/null 2>&1 && break
+        sleep 1
+    done
+fi
+
+# ── Hand off to the official Seafile startup script ───────────────────────
+# /scripts/start.sh reads the SEAFILE_* env vars exported by cont-init.d,
+# handles first-run DB setup, config generation, and starts Seafile + Seahub.
+bashio::log.info "Starting Seafile (official startup)..."
+exec /scripts/start.sh
+
 
 SERVER_HOSTNAME="$(bashio::config 'server_hostname')"
 SERVER_PROTOCOL="$(bashio::config 'server_protocol')"
