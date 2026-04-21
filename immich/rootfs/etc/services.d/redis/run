@@ -1,0 +1,13 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+
+set -euo pipefail
+
+args=(--port "${REDIS_PORT}" --bind 127.0.0.1 --protected-mode yes --save "")
+
+if [ -n "${REDIS_PASSWORD}" ]; then
+    args+=(--requirepass "${REDIS_PASSWORD}")
+fi
+
+bashio::log.info "Starting Redis..."
+exec redis-server "${args[@]}"

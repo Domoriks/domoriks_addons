@@ -1,0 +1,19 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+
+set -euo pipefail
+
+redis_args=(-h 127.0.0.1 -p "${REDIS_PORT}")
+if [ -n "${REDIS_PASSWORD}" ]; then
+    redis_args+=(-a "${REDIS_PASSWORD}")
+fi
+
+for _ in $(seq 1 60); do
+    if redis-cli "${redis_args[@]}" ping > /dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
+
+bashio::log.info "Starting Immich..."
+exec /bin/bash -c "start.sh"

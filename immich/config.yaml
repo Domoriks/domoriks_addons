@@ -3,7 +3,7 @@ name: "Immich"
 description: "Immich self-hosted photo and video management server"
 version: "0.1.0"
 slug: "immich"
-init: false
+init: true
 homeassistant_api: false
 auth_api: false
 ingress: true
