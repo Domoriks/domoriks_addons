@@ -25,6 +25,14 @@ REDIS_PORT="$(read_opt redis_port)"
 REDIS_PASSWORD="$(jq -er '.redis_password // ""' "${OPTIONS_FILE}")"
 MACHINE_LEARNING_URL="$(jq -er '.machine_learning_url // ""' "${OPTIONS_FILE}")"
 
+# db_host must be a single DNS name or IP. Wildcards are valid for server
+# listen addresses, but invalid for client DNS lookups.
+DB_HOST="${DB_HOST// /}"
+if [ -z "${DB_HOST}" ] || [ "${DB_HOST}" = "*" ] || [[ "${DB_HOST}" == *","* ]] || [[ ! "${DB_HOST}" =~ ^[A-Za-z0-9._:-]+$ ]]; then
+  echo "[warning] Invalid db_host '${DB_HOST:-<empty>}'. Falling back to 'postgres'." >&2
+  DB_HOST="postgres"
+fi
+
 mkdir -p "${UPLOAD_LOCATION}" "${MODEL_CACHE_LOCATION}" /var/lib/redis
 chown -R redis:redis /var/lib/redis
 
