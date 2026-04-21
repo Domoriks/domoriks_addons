@@ -1,0 +1,35 @@
+---
+configuration:
+  upload_location:
+    name: Upload location
+    description: Path where Immich stores uploaded media.
+  model_cache_location:
+    name: Model cache location
+    description: Path used to store machine learning model cache.
+  tz:
+    name: Time zone
+    description: Time zone identifier, for example UTC or Europe/Amsterdam.
+  db_host:
+    name: Database host
+    description: Hostname or IP of the PostgreSQL server.
+  db_port:
+    name: Database port
+    description: Port of the PostgreSQL server.
+  db_username:
+    name: Database username
+    description: Username used to connect to PostgreSQL.
+  db_password:
+    name: Database password
+    description: Password used to connect to PostgreSQL.
+  db_database_name:
+    name: Database name
+    description: PostgreSQL database name for Immich.
+  redis_port:
+    name: Redis port
+    description: Local Redis-compatible cache port.
+  redis_password:
+    name: Redis password
+    description: Optional password for local Redis-compatible cache.
+  machine_learning_url:
+    name: Machine learning URL
+    description: Optional URL for an external Immich machine learning service.

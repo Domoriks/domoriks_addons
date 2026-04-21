@@ -1,0 +1,6 @@
+{
+  "name": "My HA Addons",
+  "udev": true,
+  "url": "https://github.com/Domoriks/domoriks-addons",
+  "maintainer": "Domoriks <hello@domoriks.com>"
+}

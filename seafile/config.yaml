@@ -1,0 +1,169 @@
+---
+name: "Seafile"
+description: "Seafile Community Edition – self-hosted file sync and share server"
+version: "1.0.0"
+slug: "seafile"
+init: false
+homeassistant_api: false
+auth_api: false
+ingress: true
+ingress_port: 80
+panel_icon: "mdi:file-cloud"
+panel_title: "Seafile"
+
+arch:
+  - aarch64
+  - amd64
+  - armv7
+
+startup: application
+
+map:
+  - type: share
+    path: /share/seafile
+    read_only: false
+
+ports:
+  80/tcp: null
+  8082/tcp: null
+
+ports_description:
+  80/tcp: "Seahub web interface"
+  8082/tcp: "Seafile file-server (WebDAV / sync)"
+
+options:
+  # ── Server ──────────────────────────────────────────────────────────────────
+  server_hostname: "homeassistant.local"
+  server_protocol: "http"
+  seahub_port: 80
+  fileserver_port: 8082
+
+  # ── Admin account (first-run only) ───────────────────────────────────────
+  admin_email: "admin@example.com"
+  admin_password: "changeme"
+
+  # ── Security ─────────────────────────────────────────────────────────────
+  # Generate with: python3 -c "import secrets; print(secrets.token_hex(32))"
+  jwt_private_key: ""
+  secret_key: ""
+
+  # ── Database (MariaDB – bundled) ──────────────────────────────────────────
+  mysql_root_password: "seafile_root"
+  mysql_host: "127.0.0.1"
+  mysql_port: 3306
+  mysql_user: "seafile"
+  mysql_password: "seafile"
+  ccnet_db_name: "ccnet_db"
+  seafile_db_name: "seafile_db"
+  seahub_db_name: "seahub_db"
+
+  # ── Cache ────────────────────────────────────────────────────────────────
+  # 'redis' is recommended (Seafile 13+); 'memcached' for legacy setups
+  cache_provider: "redis"
+  redis_host: "127.0.0.1"
+  redis_port: 6379
+  redis_password: ""
+  memcached_host: "127.0.0.1"
+  memcached_port: 11211
+
+  # ── Time ────────────────────────────────────────────────────────────────
+  time_zone: "UTC"
+
+  # ── Optional features ────────────────────────────────────────────────────
+  enable_notification_server: false
+  notification_server_url: ""
+  md_file_count_limit: 100000
+  non_root: false
+
+  # ── Email (optional) ─────────────────────────────────────────────────────
+  email_enabled: false
+  email_host: ""
+  email_port: 587
+  email_host_user: ""
+  email_host_password: ""
+  email_use_tls: true
+  email_from: "no-reply@example.com"
+
+  # ── S3 / Object-storage backend (optional) ───────────────────────────────
+  s3_enabled: false
+  s3_bucket: ""
+  s3_key_id: ""
+  s3_key: ""
+  s3_host: ""
+  s3_use_v4_signature: true
+  s3_path_style_request: false
+
+  # ── Nginx / HTTPS ────────────────────────────────────────────────────────
+  # Provide your own cert/key paths when protocol is 'https'
+  ssl_cert_path: ""
+  ssl_key_path: ""
+
+  # ── Logging ──────────────────────────────────────────────────────────────
+  log_level: "INFO"
+
+schema:
+  # ── Server ──────────────────────────────────────────────────────────────
+  server_hostname: str
+  server_protocol: "list(http|https)"
+  seahub_port: port
+  fileserver_port: port
+
+  # ── Admin account ────────────────────────────────────────────────────────
+  admin_email: email
+  admin_password: password
+
+  # ── Security ─────────────────────────────────────────────────────────────
+  jwt_private_key: password
+  secret_key: password
+
+  # ── Database ─────────────────────────────────────────────────────────────
+  mysql_root_password: password
+  mysql_host: str
+  mysql_port: port
+  mysql_user: str
+  mysql_password: password
+  ccnet_db_name: str
+  seafile_db_name: str
+  seahub_db_name: str
+
+  # ── Cache ────────────────────────────────────────────────────────────────
+  cache_provider: "list(redis|memcached)"
+  redis_host: str
+  redis_port: port
+  redis_password: password?
+  memcached_host: str
+  memcached_port: port
+
+  # ── Time ─────────────────────────────────────────────────────────────────
+  time_zone: str
+
+  # ── Optional features ────────────────────────────────────────────────────
+  enable_notification_server: bool
+  notification_server_url: str?
+  md_file_count_limit: int
+  non_root: bool
+
+  # ── Email ────────────────────────────────────────────────────────────────
+  email_enabled: bool
+  email_host: str?
+  email_port: port?
+  email_host_user: str?
+  email_host_password: password?
+  email_use_tls: bool
+  email_from: str?
+
+  # ── S3 ───────────────────────────────────────────────────────────────────
+  s3_enabled: bool
+  s3_bucket: str?
+  s3_key_id: str?
+  s3_key: password?
+  s3_host: str?
+  s3_use_v4_signature: bool
+  s3_path_style_request: bool
+
+  # ── HTTPS ────────────────────────────────────────────────────────────────
+  ssl_cert_path: str?
+  ssl_key_path: str?
+
+  # ── Logging ──────────────────────────────────────────────────────────────
+  log_level: "list(DEBUG|INFO|WARNING|ERROR)"

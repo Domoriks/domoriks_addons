@@ -1,0 +1,17 @@
+---
+configuration:
+  data_location:
+    name: Data location
+    description: Path where PostgreSQL data files are stored.
+  postgres_user:
+    name: PostgreSQL user
+    description: User name created for application access.
+  postgres_password:
+    name: PostgreSQL password
+    description: Password for the configured PostgreSQL user.
+  postgres_db:
+    name: PostgreSQL database
+    description: Database name to create on first start.
+  listen_addresses:
+    name: Listen addresses
+    description: PostgreSQL listen_addresses setting, for example * or 127.0.0.1.

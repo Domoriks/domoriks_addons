@@ -1,0 +1,191 @@
+---
+configuration:
+  # ── Server ──────────────────────────────────────────────────────────────────
+  server_hostname:
+    name: Server hostname
+    description: >-
+      The public hostname or domain name of your Seafile server
+      (e.g. seafile.example.com or homeassistant.local).
+  server_protocol:
+    name: Server protocol
+    description: Use 'https' when running behind a TLS-terminating reverse proxy.
+  seahub_port:
+    name: Seahub port
+    description: Port the Seahub web UI will listen on (default 80).
+  fileserver_port:
+    name: File-server port
+    description: >-
+      Port the Seafile file-server (WebDAV / desktop-client sync) will
+      listen on (default 8082).
+
+  # ── Admin account ────────────────────────────────────────────────────────
+  admin_email:
+    name: Admin e-mail
+    description: E-mail address for the initial administrator account (first run only).
+  admin_password:
+    name: Admin password
+    description: >-
+      Password for the initial administrator account (first run only).
+      Change this after the first login.
+
+  # ── Security ─────────────────────────────────────────────────────────────
+  jwt_private_key:
+    name: JWT private key
+    description: >-
+      A random string of at least 32 characters used to sign JWT tokens.
+      Leave blank to auto-generate (recommended for first run).
+      Once set, do not change it – doing so will invalidate all active sessions.
+  secret_key:
+    name: Django secret key
+    description: >-
+      A random string used by Django for CSRF protection.
+      Leave blank to auto-generate. Do not change after first run.
+
+  # ── Database ─────────────────────────────────────────────────────────────
+  mysql_root_password:
+    name: MySQL root password
+    description: Root password for the bundled MariaDB instance.
+  mysql_host:
+    name: MySQL host
+    description: >-
+      Hostname of the MySQL/MariaDB server.
+      Use '127.0.0.1' for the bundled instance.
+  mysql_port:
+    name: MySQL port
+    description: Port of the MySQL/MariaDB server (default 3306).
+  mysql_user:
+    name: MySQL user
+    description: Username Seafile uses to connect to the database.
+  mysql_password:
+    name: MySQL password
+    description: Password for the Seafile database user.
+  ccnet_db_name:
+    name: Ccnet database name
+    description: Name of the ccnet database (default ccnet_db).
+  seafile_db_name:
+    name: Seafile database name
+    description: Name of the seafile database (default seafile_db).
+  seahub_db_name:
+    name: Seahub database name
+    description: Name of the seahub database (default seahub_db).
+
+  # ── Cache ────────────────────────────────────────────────────────────────
+  cache_provider:
+    name: Cache provider
+    description: >-
+      'redis' is recommended for Seafile 13+ and enables all new features.
+      Use 'memcached' only for legacy compatibility.
+  redis_host:
+    name: Redis host
+    description: >-
+      Hostname of the Redis server.
+      Use '127.0.0.1' for the bundled Redis instance.
+  redis_port:
+    name: Redis port
+    description: Port of the Redis server (default 6379).
+  redis_password:
+    name: Redis password
+    description: Optional password for the Redis server. Leave blank for no authentication.
+  memcached_host:
+    name: Memcached host
+    description: Hostname of the Memcached server (used when cache_provider is memcached).
+  memcached_port:
+    name: Memcached port
+    description: Port of the Memcached server (default 11211).
+
+  # ── Time ─────────────────────────────────────────────────────────────────
+  time_zone:
+    name: Time zone
+    description: >-
+      Server time zone in IANA format (e.g. Europe/Berlin, America/New_York, UTC).
+
+  # ── Optional features ────────────────────────────────────────────────────
+  enable_notification_server:
+    name: Enable notification server
+    description: >-
+      Enable Seafile's real-time notification push feature.
+      Requires a separately running Seafile notification server.
+  notification_server_url:
+    name: Notification server URL
+    description: Full URL of the notification server (required when enabled).
+  md_file_count_limit:
+    name: Metadata file-count limit
+    description: >-
+      Maximum number of files per repository for which the metadata
+      management feature is active (default 100000).
+  non_root:
+    name: Run as non-root
+    description: Run the Seafile container processes as a non-root user.
+
+  # ── Email ────────────────────────────────────────────────────────────────
+  email_enabled:
+    name: Enable outbound e-mail
+    description: >-
+      Allow Seafile to send e-mails (password reset, share notifications, etc.).
+  email_host:
+    name: SMTP host
+    description: Hostname of the outbound SMTP server.
+  email_port:
+    name: SMTP port
+    description: Port of the SMTP server (typically 587 for STARTTLS or 465 for SSL).
+  email_host_user:
+    name: SMTP username
+    description: Username used to authenticate with the SMTP server.
+  email_host_password:
+    name: SMTP password
+    description: Password used to authenticate with the SMTP server.
+  email_use_tls:
+    name: Use TLS for e-mail
+    description: Enable STARTTLS when connecting to the SMTP server.
+  email_from:
+    name: From address
+    description: The "From" e-mail address for outgoing messages.
+
+  # ── S3 object storage ────────────────────────────────────────────────────
+  s3_enabled:
+    name: Enable S3 object storage
+    description: >-
+      Store file blocks in an S3-compatible object store (AWS S3,
+      MinIO, Backblaze B2, etc.) instead of the local filesystem.
+  s3_bucket:
+    name: S3 bucket name
+    description: Name of the S3 bucket that stores Seafile file blocks.
+  s3_key_id:
+    name: S3 access key ID
+    description: Access key ID for S3 authentication.
+  s3_key:
+    name: S3 secret key
+    description: Secret access key for S3 authentication.
+  s3_host:
+    name: S3 endpoint host
+    description: >-
+      Endpoint host for S3-compatible stores (leave blank for AWS S3).
+      Example for MinIO: minio.example.com.
+  s3_use_v4_signature:
+    name: Use S3 v4 signature
+    description: Use AWS Signature Version 4 (required by most modern S3 providers).
+  s3_path_style_request:
+    name: S3 path-style requests
+    description: >-
+      Use path-style bucket URLs (https://host/bucket) instead of
+      virtual-hosted-style (https://bucket.host).
+      Required by some S3-compatible services such as MinIO.
+
+  # ── HTTPS / TLS ──────────────────────────────────────────────────────────
+  ssl_cert_path:
+    name: SSL certificate path
+    description: >-
+      Absolute path to the TLS certificate file (PEM format).
+      Only required when server_protocol is 'https'.
+  ssl_key_path:
+    name: SSL key path
+    description: >-
+      Absolute path to the TLS private key file (PEM format).
+      Only required when server_protocol is 'https'.
+
+  # ── Logging ──────────────────────────────────────────────────────────────
+  log_level:
+    name: Log level
+    description: >-
+      Controls the verbosity of Seahub logs.
+      DEBUG gives the most detail; ERROR only shows failures.

@@ -1,0 +1,55 @@
+---
+name: "Immich"
+description: "Immich self-hosted photo and video management server"
+version: "0.1.0"
+slug: "immich"
+init: false
+homeassistant_api: false
+auth_api: false
+ingress: true
+ingress_port: 2283
+panel_icon: "mdi:image-multiple"
+panel_title: "Immich"
+
+arch:
+  - aarch64
+  - amd64
+
+startup: application
+
+map:
+  - type: share
+    path: /share/immich
+    read_only: false
+
+ports:
+  2283/tcp: null
+
+ports_description:
+  2283/tcp: "Immich web interface"
+
+options:
+  upload_location: "/share/immich/library"
+  model_cache_location: "/share/immich/model-cache"
+  tz: "UTC"
+  db_host: "postgres"
+  db_port: 5432
+  db_username: "immich"
+  db_password: "immich"
+  db_database_name: "immich"
+  redis_port: 6379
+  redis_password: ""
+  machine_learning_url: ""
+
+schema:
+  upload_location: str
+  model_cache_location: str
+  tz: str
+  db_host: str
+  db_port: port
+  db_username: str
+  db_password: password
+  db_database_name: str
+  redis_port: port
+  redis_password: password?
+  machine_learning_url: str?

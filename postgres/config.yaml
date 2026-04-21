@@ -1,0 +1,41 @@
+---
+name: "Postgres for Immich"
+description: "PostgreSQL database addon intended for Immich"
+version: "0.1.0"
+slug: "postgres"
+init: false
+homeassistant_api: false
+auth_api: false
+ingress: false
+panel_icon: "mdi:database"
+
+arch:
+  - aarch64
+  - amd64
+
+startup: application
+
+map:
+  - type: share
+    path: /share/postgres
+    read_only: false
+
+ports:
+  5432/tcp: null
+
+ports_description:
+  5432/tcp: "PostgreSQL server"
+
+options:
+  data_location: "/share/postgres/data"
+  postgres_user: "immich"
+  postgres_password: "immich"
+  postgres_db: "immich"
+  listen_addresses: "*"
+
+schema:
+  data_location: str
+  postgres_user: str
+  postgres_password: password
+  postgres_db: str
+  listen_addresses: str
