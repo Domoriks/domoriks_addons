@@ -3,13 +3,15 @@
 [Seafile](https://www.seafile.com) is an open-source, self-hosted file sync and share platform.
 This addon runs **Seafile Community Edition** directly on your Home Assistant OS instance.
 
+This build uses the `franchetti/seafile-arm` Docker image as its base and is intended for ARM systems.
+
 ---
 
 ## What's included
 
 | Service | Notes |
 |---------|-------|
-| **Seahub** | Web interface (default port 80) |
+| **Seahub** | Web interface (default port 8000) |
 | **Seafile file-server** | Desktop / mobile sync + WebDAV (default port 8082) |
 | **MariaDB** | Bundled database — data persists in `/share/seafile` |
 | **Redis** | Bundled cache — strongly recommended for Seafile 13+ |

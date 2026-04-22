@@ -11,7 +11,7 @@ configuration:
     description: Use 'https' when running behind a TLS-terminating reverse proxy.
   seahub_port:
     name: Seahub port
-    description: Port the Seahub web UI will listen on (default 80).
+    description: Port the Seahub web UI will listen on (default 8000).
   fileserver_port:
     name: File-server port
     description: >-

@@ -1,7 +1,7 @@
 ---
 name: "Seafile"
 description: "Seafile Community Edition – self-hosted file sync and share server"
-version: "0.1.4"
+version: "0.1.5"
 slug: "seafile"
 init: false
 homeassistant_api: false
@@ -13,7 +13,6 @@ panel_title: "Seafile"
 
 arch:
   - aarch64
-  - amd64
   - armv7
 
 startup: application

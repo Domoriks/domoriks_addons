@@ -1,7 +1,7 @@
-# Official Seafile CE image — includes Seafile, Seahub, Nginx and all Python deps.
+# Franchetti Seafile ARM image as requested base.
 # We add MariaDB + Redis (bundled local services) and layer s6-overlay + Bashio
 # so Home Assistant Supervisor can manage the add-on lifecycle.
-ARG BUILD_FROM=seafileltd/seafile-mc:13.0-latest
+ARG BUILD_FROM=franchetti/seafile-arm:latest
 FROM ${BUILD_FROM}
 
 ARG BASHIO_REPOSITORY=hassio-addons/bashio
