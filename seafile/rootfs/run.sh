@@ -2,7 +2,7 @@
 set -e
 
 # Read HA add-on config via environment variables (HA passes these)
-EXTERNAL_URL="${external_url:-http://homeassistant.local:8000}"
+EXTERNAL_URL="${external_url:-http://127.0.0.1:8000}"
 ADMIN_EMAIL="${admin_email:-admin@example.com}"
 ADMIN_PASSWORD="${admin_password:-a_very_secure_password_CHANGEME}"
 
@@ -13,7 +13,7 @@ HOST_WITH_PORT="${URL_NO_SCHEME%%/*}"
 HOSTNAME_ONLY="${HOST_WITH_PORT%%:*}"
 
 if [ -z "${HOSTNAME_ONLY}" ]; then
-    HOSTNAME_ONLY="homeassistant.local"
+    HOSTNAME_ONLY="127.0.0.1"
 fi
 
 # Set environment for Seafile to connect to local services

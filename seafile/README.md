@@ -10,7 +10,7 @@ Run Seafile CE with bundled MariaDB and Redis in a single container for LAN use.
 - **ARM64-only**: v1 targets Raspberry Pi / ARM64 systems
 
 ## Exposed Settings
-- `external_url` (default: `http://homeassistant.local:8000`) — Published URL for Seafile clients
+- `external_url` (default: `http://127.0.0.1:8000`) — Published URL for Seafile clients
 - `admin_email` (default: `admin@example.com`) — Seafile admin login email
 - `admin_password` (default: `a_very_secure_password_CHANGEME`) — Seafile admin password
 
@@ -26,7 +26,7 @@ All communication is local (127.0.0.1). No network exposure for DB/Redis.
 1. Install the add-on in Home Assistant.
 2. Ensure `admin_password` is set to something other than the placeholder.
 3. Start the add-on.
-4. Access Seafile at `http://homeassistant.local:8000`.
+4. Access Seafile at `http://127.0.0.1:8000`.
 5. Log in with the configured `admin_email` and `admin_password`.
 
 ## Security Notes
