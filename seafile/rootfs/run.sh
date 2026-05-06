@@ -22,6 +22,36 @@ fi
 export SERVICE_URL_VALUE="${EXTERNAL_URL}"
 export FILE_SERVER_ROOT_VALUE="http://${HOSTNAME_ONLY}:8082"
 
+# ---- Persistence setup ------------------------------------------------
+# /data is the only automatically persistent path in HA addons.
+# Symlink MariaDB and Seafile data directories to /data so they survive restarts.
+PERSISTENT_MYSQL="/data/mysql"
+PERSISTENT_SEAFILE="/data/seafile"
+mkdir -p "${PERSISTENT_MYSQL}" "${PERSISTENT_SEAFILE}"
+
+# MariaDB: use /data/mysql as datadir via symlink
+if [ ! -L /var/lib/mysql ] && [ -d /var/lib/mysql ]; then
+    # First run with existing (empty) /var/lib/mysql dir - move any contents
+    if [ "$(ls -A /var/lib/mysql 2>/dev/null)" ]; then
+        cp -a /var/lib/mysql/. "${PERSISTENT_MYSQL}/" 2>/dev/null || true
+    fi
+    rm -rf /var/lib/mysql
+fi
+ln -sfn "${PERSISTENT_MYSQL}" /var/lib/mysql
+chown mysql:mysql "${PERSISTENT_MYSQL}" 2>/dev/null || true
+
+# Seafile: use /data/seafile as /shared/seafile via symlink
+mkdir -p /shared
+if [ ! -L /shared/seafile ] && [ -d /shared/seafile ]; then
+    if [ "$(ls -A /shared/seafile 2>/dev/null)" ]; then
+        cp -a /shared/seafile/. "${PERSISTENT_SEAFILE}/" 2>/dev/null || true
+    fi
+    rm -rf /shared/seafile
+fi
+ln -sfn "${PERSISTENT_SEAFILE}" /shared/seafile
+
+echo "[INFO] Persistence: MariaDB -> ${PERSISTENT_MYSQL}, Seafile -> ${PERSISTENT_SEAFILE}"
+
 # Set environment for Seafile to connect to local services
 export DB_HOST="127.0.0.1"
 export DB_PORT="3306"
@@ -52,17 +82,9 @@ echo "[INFO] Seafile add-on starting..."
 echo "[INFO] External URL: ${EXTERNAL_URL}"
 echo "[INFO] Seafile hostname: ${HOSTNAME_ONLY}"
 echo "[INFO] Admin email: ${ADMIN_EMAIL}"
-echo "[INFO] Exporting environment variables for Seafile..."
-echo "  DB_HOST=${DB_HOST}"
-echo "  DB_USER=${DB_USER}"
-echo "  REDIS_HOST=${REDIS_HOST}"
-echo "  SEAFILE_SERVER_HOSTNAME=${SEAFILE_SERVER_HOSTNAME}"
-echo "  SEAFILE_PUBLISH_PORT=${SEAFILE_PUBLISH_PORT}"
+echo "[INFO] SERVICE_URL: ${SERVICE_URL_VALUE}"
+echo "[INFO] FILE_SERVER_ROOT: ${FILE_SERVER_ROOT_VALUE}"
 echo ""
-
-# NOTE: .env is written by /opt/seafile-db-init-and-start.sh AFTER my_init has
-# created the /shared/seafile symlink tree (via 01_create_data_links.sh).
-# Do NOT write it here — it would be at the wrong path or get overwritten.
 
 if [ "${ADMIN_PASSWORD}" = "a_very_secure_password_CHANGEME" ]; then
   echo "[WARNING] Using placeholder admin password. Change CHANGEME value after testing."
