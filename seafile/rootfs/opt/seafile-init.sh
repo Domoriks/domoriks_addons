@@ -169,17 +169,17 @@ cat > /opt/apply_addon_urls.sh <<'URLEOF'
 #!/bin/bash
 # Patch seahub_settings.py with addon URLs.
 # On first boot, setup-seafile-mysql.py regenerates the file AFTER we first patch it.
-# Solution: keep patching until Seahub is running AND our URLs are in place.
+# Solution: keep patching until Seahub is running with correct URLs.
+# If Seahub started with wrong URLs, restart it after patching.
 SERVICE_URL_VALUE="$1"
 FILE_SERVER_ROOT_VALUE="$2"
 
 patch_configs() {
-    local patched=0
+    local changed=0
     for _CONF in /opt/seafile/conf/seahub_settings.py /shared/seafile/conf/seahub_settings.py; do
         if [ -f "$_CONF" ]; then
-            # Check if already correct
+            # Already correct?
             if grep -qF "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" "$_CONF" 2>/dev/null; then
-                patched=1
                 continue
             fi
             sed -i '/^SERVICE_URL *=/d' "$_CONF"
@@ -187,36 +187,47 @@ patch_configs() {
             echo "SERVICE_URL = '${SERVICE_URL_VALUE}'" >> "$_CONF"
             echo "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" >> "$_CONF"
             echo "[apply_addon_urls] Patched $_CONF"
-            patched=1
+            changed=1
         fi
     done
-    return $((1 - patched))
+    return $changed  # 0 = nothing changed (already correct or no file), 1 = patched
 }
 
-# Phase 1: Wait for any seahub_settings.py to appear and patch it
-for i in $(seq 1 120); do
-    if patch_configs; then
-        echo "[apply_addon_urls] Initial patch applied"
+# Phase 1: Wait for seahub_settings.py to exist
+for i in $(seq 1 180); do
+    if [ -f /opt/seafile/conf/seahub_settings.py ] || [ -f /shared/seafile/conf/seahub_settings.py ]; then
         break
     fi
-    sleep 2
+    sleep 1
 done
 
-# Phase 2: Keep monitoring until Seahub is running (setup complete) and URLs are correct.
-# On first boot, setup-seafile-mysql.py will overwrite our patch; we re-apply after.
-for i in $(seq 1 90); do
-    sleep 3
+# Phase 2: Poll aggressively until Seahub is running AND URLs are correct
+NEED_RESTART=0
+for i in $(seq 1 300); do
     patch_configs
-    # Check if Seahub (gunicorn) is running - means setup is done
-    if pgrep -f "seahub" >/dev/null 2>&1; then
-        # Final patch to be sure
-        sleep 2
-        patch_configs
-        echo "[apply_addon_urls] URL config applied successfully (Seahub running)"
-        exit 0
+    PATCHED=$?
+
+    # If we patched while Seahub was already running, it needs a restart
+    if [ $PATCHED -eq 1 ] && pgrep -f "seahub.wsgi" >/dev/null 2>&1; then
+        NEED_RESTART=1
     fi
+
+    # Check if Seahub is running and config is correct
+    if pgrep -f "seahub.wsgi" >/dev/null 2>&1; then
+        # Verify URLs are correct in the actual file
+        if grep -qF "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" /opt/seafile/conf/seahub_settings.py 2>/dev/null || \
+           grep -qF "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" /shared/seafile/conf/seahub_settings.py 2>/dev/null; then
+            if [ $NEED_RESTART -eq 1 ]; then
+                echo "[apply_addon_urls] Restarting Seahub to pick up corrected URLs..."
+                cd /opt/seafile/seafile-server-latest && ./seahub.sh restart 2>&1 | tail -3
+            fi
+            echo "[apply_addon_urls] URL config applied successfully"
+            exit 0
+        fi
+    fi
+    sleep 1
 done
-echo "[apply_addon_urls] Timeout waiting for Seahub, URLs may not be applied"
+echo "[apply_addon_urls] Timeout waiting for correct URLs"
 URLEOF
 chmod +x /opt/apply_addon_urls.sh
 
