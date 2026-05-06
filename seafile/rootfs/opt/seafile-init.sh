@@ -125,20 +125,11 @@ CACHE_PROVIDER=redis
 REDIS_HOST=${REDIS_HOST:-127.0.0.1}
 REDIS_PORT=${REDIS_PORT:-6379}
 REDIS_PASSWORD=
-EOF
-
-# Only include admin credentials on first boot (prevents repeated admin creation errors)
-if [ "${IS_INITIALIZED:-0}" -eq 0 ]; then
-    cat >> "${ENV_FILE}" <<EOF2
 SEAFILE_ADMIN_EMAIL=${SEAFILE_ADMIN_EMAIL}
 SEAFILE_ADMIN_PASSWORD=${SEAFILE_ADMIN_PASSWORD}
 INIT_SEAFILE_ADMIN_EMAIL=${INIT_SEAFILE_ADMIN_EMAIL:-${SEAFILE_ADMIN_EMAIL}}
 INIT_SEAFILE_ADMIN_PASSWORD=${INIT_SEAFILE_ADMIN_PASSWORD:-${SEAFILE_ADMIN_PASSWORD}}
-EOF2
-    echo "[INFO] Admin credentials included in .env (first boot)"
-else
-    echo "[INFO] Skipping admin credentials in .env (already initialized)"
-fi
+EOF
 echo "[OK] .env written."
 
 # Seafile 13.0 expects .env at /opt/seafile/conf/.env (per upgrade manual).

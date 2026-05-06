@@ -73,9 +73,10 @@ PERSISTENT_SEAFILE="/data/seafile"
 mkdir -p "${PERSISTENT_MYSQL}" "${PERSISTENT_SEAFILE}"
 
 # MariaDB: use /data/mysql as datadir via symlink
-if [ ! -L /var/lib/mysql ] && [ -d /var/lib/mysql ]; then
-    # First run with existing (empty) /var/lib/mysql dir - move any contents
-    if [ "$(ls -A /var/lib/mysql 2>/dev/null)" ]; then
+if [ ! -L /var/lib/mysql ]; then
+    # Only seed /data/mysql from the image if it's truly the first boot (empty persistent dir)
+    if [ ! -d "${PERSISTENT_MYSQL}/mysql" ]; then
+        echo "[INFO] First boot: seeding MariaDB data from image"
         cp -a /var/lib/mysql/. "${PERSISTENT_MYSQL}/" 2>/dev/null || true
     fi
     rm -rf /var/lib/mysql
@@ -85,8 +86,9 @@ chown mysql:mysql "${PERSISTENT_MYSQL}" 2>/dev/null || true
 
 # Seafile: use /data/seafile as /shared/seafile via symlink
 mkdir -p /shared
-if [ ! -L /shared/seafile ] && [ -d /shared/seafile ]; then
-    if [ "$(ls -A /shared/seafile 2>/dev/null)" ]; then
+if [ ! -L /shared/seafile ]; then
+    # Only seed if persistent dir is empty
+    if [ -d /shared/seafile ] && [ "$(ls -A /shared/seafile 2>/dev/null)" ] && [ ! "$(ls -A "${PERSISTENT_SEAFILE}" 2>/dev/null)" ]; then
         cp -a /shared/seafile/. "${PERSISTENT_SEAFILE}/" 2>/dev/null || true
     fi
     rm -rf /shared/seafile
@@ -118,10 +120,12 @@ export SEAFILE_MYSQL_DB_SEAHUB_DB_NAME="seahub_db"
 export INIT_SEAFILE_MYSQL_ROOT_PASSWORD=""
 
 if [ "${IS_INITIALIZED}" -eq 1 ]; then
-    unset SEAFILE_ADMIN_EMAIL
-    unset SEAFILE_ADMIN_PASSWORD
-    unset INIT_SEAFILE_ADMIN_EMAIL
-    unset INIT_SEAFILE_ADMIN_PASSWORD
+    # Always pass admin creds - upstream handles "already exists" gracefully.
+    # Passing empty values causes "Error happened during creating seafile admin".
+    export SEAFILE_ADMIN_EMAIL="${ADMIN_EMAIL}"
+    export SEAFILE_ADMIN_PASSWORD="${ADMIN_PASSWORD}"
+    export INIT_SEAFILE_ADMIN_EMAIL="${ADMIN_EMAIL}"
+    export INIT_SEAFILE_ADMIN_PASSWORD="${ADMIN_PASSWORD}"
 else
     export SEAFILE_ADMIN_EMAIL="${ADMIN_EMAIL}"
     export SEAFILE_ADMIN_PASSWORD="${ADMIN_PASSWORD}"
