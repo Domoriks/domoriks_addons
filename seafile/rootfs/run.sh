@@ -2,7 +2,7 @@
 set -e
 
 # Read HA add-on config defaults.
-EXTERNAL_URL="${external_url:-http://127.0.0.1:8000}"
+EXTERNAL_URL="${external_url:-http://homeassistant.local:8000}"
 ADMIN_EMAIL="${admin_email:-admin@example.com}"
 ADMIN_PASSWORD="${admin_password:-a_very_secure_password_CHANGEME}"
 
@@ -43,12 +43,12 @@ else
     if [[ "${EXTERNAL_URL}" == https://* ]]; then
         URL_PORT="443"
     else
-        URL_PORT="80"
+        URL_PORT="8000"
     fi
 fi
 
 if [ -z "${HOSTNAME_ONLY}" ]; then
-    HOSTNAME_ONLY="127.0.0.1"
+    HOSTNAME_ONLY="homeassistant.local"
 fi
 
 # Derive SERVICE_URL and FILE_SERVER_ROOT for seahub_settings.py
@@ -65,9 +65,15 @@ if [ -d /shared/seafile/seafile-data ] || [ -d /data/seafile/seafile-data ]; the
     export IS_INITIALIZED=1
 fi
 
-# Upstream setup-seafile-mysql.py hostname validation has been patched in Dockerfile
-# to accept single-label hostnames (like "gas1c") for LAN deployments.
-# Always use the real hostname from the user's external_url.
+# Upstream first-run setup rejects single-label hostnames. Use a safe bootstrap
+# hostname only for first init; runtime URLs are corrected back to external_url.
+BOOTSTRAP_HOSTNAME="${HOSTNAME_ONLY}"
+if [ "${IS_INITIALIZED}" -eq 0 ]; then
+    if ! echo "${HOSTNAME_ONLY}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$|^[A-Za-z0-9-]+\.[A-Za-z0-9.-]+$'; then
+        BOOTSTRAP_HOSTNAME="homeassistant.local"
+        echo "[INFO] Using '${BOOTSTRAP_HOSTNAME}' for first-run bootstrap; runtime URLs stay '${SERVICE_URL_VALUE}'."
+    fi
+fi
 
 # ---- Persistence setup ------------------------------------------------
 # /data is the only automatically persistent path in HA addons.
@@ -110,7 +116,7 @@ export DB_PASSWORD=""
 export REDIS_HOST="127.0.0.1"
 export REDIS_PORT="6379"
 export TIME_ZONE="Etc/UTC"
-export SEAFILE_SERVER_HOSTNAME="${HOSTNAME_ONLY}"
+export SEAFILE_SERVER_HOSTNAME="${BOOTSTRAP_HOSTNAME}"
 export SEAFILE_SERVER_PROTOCOL="http"
 export SEAFILE_PUBLISH_PORT="${URL_PORT}"   # external port from user's URL; upstream uses this to generate SERVICE_URL/FILE_SERVER_ROOT
 # New env-var API (post-Apr 2025 scripts) — export both old and new names

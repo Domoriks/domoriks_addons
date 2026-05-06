@@ -1,5 +1,5 @@
 name: "Seafile (Self-contained)"
-version: "0.4.4"
+version: "0.4.5"
 slug: "seafile"
 description: "Seafile CE with bundled MariaDB and Redis for LAN use"
 url: "https://github.com/Domoriks/domoriks_addons/tree/main/seafile"
@@ -10,12 +10,10 @@ arch:
   - aarch64
 ports:
   80/tcp: 8000
-  8082/tcp: 8082
 ports_description:
   80/tcp: "Seahub (Web UI) — nginx listens on 80 internally, mapped to 8000"
-  8082/tcp: "Seafile Fileserver (Desktop sync)"
 options:
-  external_url: "http://127.0.0.1:8000"
+  external_url: "http://homeassistant.local:8000"
   admin_email: "admin@example.com"
   admin_password: "a_very_secure_password_CHANGEME"
 schema:
