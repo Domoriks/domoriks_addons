@@ -163,45 +163,81 @@ for i in $(seq 1 30); do
 done
 
 # ---- Create apply_addon_urls.sh hook -----------------------------------
-# Safety net: verify seahub_settings.py has correct URLs after upstream generates it.
-# With correct .env values, start.py should set these natively, but we patch as insurance.
+# Seahub uses Django constance: DB values in seahub_db.constance_config OVERRIDE
+# seahub_settings.py. We must patch BOTH the file AND the database, then restart.
 cat > /opt/apply_addon_urls.sh <<'URLEOF'
 #!/bin/bash
 SERVICE_URL_VALUE="$1"
 FILE_SERVER_ROOT_VALUE="$2"
+DB_PASSWORD="$3"
 
-# Wait for Seahub to fully start
-for i in $(seq 1 300); do
-    if pgrep -f "seahub.wsgi" >/dev/null 2>&1; then
+echo "[apply_addon_urls] Target: SERVICE_URL='${SERVICE_URL_VALUE}' FILE_SERVER_ROOT='${FILE_SERVER_ROOT_VALUE}'"
+
+# Wait for Seahub to be running
+for i in $(seq 1 600); do
+    if pgrep -f "gunicorn.*seahub" >/dev/null 2>&1 || \
+       pgrep -f "seahub" >/dev/null 2>&1 || \
+       [ -f /opt/seafile/pids/seahub.pid ]; then
         break
     fi
     sleep 1
 done
+sleep 5
+echo "[apply_addon_urls] Seahub detected, patching config..."
 
-# Give Seahub a moment to fully initialize
-sleep 3
-
-# Check and fix URLs in all config locations
-NEED_RESTART=0
-for _CONF in /opt/seafile/conf/seahub_settings.py /shared/seafile/conf/seahub_settings.py; do
-    if [ -f "$_CONF" ]; then
-        if ! grep -qF "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" "$_CONF" 2>/dev/null; then
-            sed -i '/^SERVICE_URL *=/d' "$_CONF"
-            sed -i '/^FILE_SERVER_ROOT *=/d' "$_CONF"
-            echo "SERVICE_URL = '${SERVICE_URL_VALUE}'" >> "$_CONF"
-            echo "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" >> "$_CONF"
-            echo "[apply_addon_urls] Patched $_CONF"
-            NEED_RESTART=1
+# 1) Patch seahub_settings.py files
+PATCHED=0
+for CONF in /opt/seafile/conf/seahub_settings.py /shared/seafile/conf/seahub_settings.py; do
+    if [ -f "$CONF" ]; then
+        CURRENT_FSR=$(grep "^FILE_SERVER_ROOT" "$CONF" 2>/dev/null || echo "(not set)")
+        echo "[apply_addon_urls] File $CONF has: $CURRENT_FSR"
+        if ! grep -qF "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" "$CONF" 2>/dev/null; then
+            sed -i '/^SERVICE_URL *=/d' "$CONF"
+            sed -i '/^FILE_SERVER_ROOT *=/d' "$CONF"
+            echo "SERVICE_URL = '${SERVICE_URL_VALUE}'" >> "$CONF"
+            echo "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" >> "$CONF"
+            echo "[apply_addon_urls] Patched file: $CONF"
+            PATCHED=1
         fi
     fi
 done
 
-if [ $NEED_RESTART -eq 1 ]; then
-    echo "[apply_addon_urls] Restarting Seahub to apply corrected URLs..."
-    cd /opt/seafile/seafile-server-latest && ./seahub.sh restart 2>&1 | tail -3
-    echo "[apply_addon_urls] URL config applied after restart"
+# 2) Patch database (constance_config overrides the file!)
+# Delete any existing constance overrides so seahub_settings.py is authoritative
+DB_PATCHED=0
+if mysql -u seafile -h 127.0.0.1 -p"${DB_PASSWORD}" seahub_db -e "SELECT 1" >/dev/null 2>&1; then
+    # Check what's in constance_config
+    echo "[apply_addon_urls] Checking constance_config table..."
+    mysql -u seafile -h 127.0.0.1 -p"${DB_PASSWORD}" seahub_db -e \
+        "SELECT \`key\`, \`value\` FROM constance_config WHERE \`key\` IN ('SERVICE_URL', 'FILE_SERVER_ROOT');" 2>/dev/null || true
+
+    # Update or insert correct values
+    mysql -u seafile -h 127.0.0.1 -p"${DB_PASSWORD}" seahub_db 2>/dev/null <<EOSQL
+DELETE FROM constance_config WHERE \`key\` IN ('SERVICE_URL', 'FILE_SERVER_ROOT');
+INSERT INTO constance_config (\`key\`, \`value\`) VALUES ('SERVICE_URL', '${SERVICE_URL_VALUE}');
+INSERT INTO constance_config (\`key\`, \`value\`) VALUES ('FILE_SERVER_ROOT', '${FILE_SERVER_ROOT_VALUE}');
+EOSQL
+    if [ $? -eq 0 ]; then
+        echo "[apply_addon_urls] Database constance_config updated"
+        DB_PATCHED=1
+    else
+        echo "[apply_addon_urls] WARN: Could not update constance_config (table may not exist yet)"
+        # Try deleting only - if no table exists, just rely on the file
+        mysql -u seafile -h 127.0.0.1 -p"${DB_PASSWORD}" seahub_db -e \
+            "DELETE FROM constance_config WHERE \`key\` IN ('SERVICE_URL', 'FILE_SERVER_ROOT');" 2>/dev/null || true
+    fi
 else
-    echo "[apply_addon_urls] URLs already correct, no action needed"
+    echo "[apply_addon_urls] WARN: Cannot connect to seahub_db"
+fi
+
+# 3) Restart Seahub if anything was changed
+if [ $PATCHED -eq 1 ] || [ $DB_PATCHED -eq 1 ]; then
+    echo "[apply_addon_urls] Restarting Seahub to apply URL changes..."
+    cd /opt/seafile/seafile-server-latest
+    ./seahub.sh restart 2>&1
+    echo "[apply_addon_urls] Done - URLs should now be correct"
+else
+    echo "[apply_addon_urls] Files already correct, verifying DB was updated"
 fi
 URLEOF
 chmod +x /opt/apply_addon_urls.sh
@@ -212,6 +248,6 @@ echo "=========================================="
 echo "  Starting Seafile (enterpoint.sh)"
 echo "=========================================="
 echo ""
-# Launch URL patcher in background - it will monitor and re-patch config until Seahub is running
-/opt/apply_addon_urls.sh "${SERVICE_URL_VALUE}" "${FILE_SERVER_ROOT_VALUE}" &
+# Launch URL patcher in background with DB password for constance_config patching
+/opt/apply_addon_urls.sh "${SERVICE_URL_VALUE}" "${FILE_SERVER_ROOT_VALUE}" "${DB_PASSWORD}" &
 exec /scripts/enterpoint.sh
