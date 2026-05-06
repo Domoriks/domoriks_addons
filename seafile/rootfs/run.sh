@@ -53,9 +53,9 @@ echo "[INFO] Configuring nginx to listen on port 8000..."
 find /etc/nginx -type f -name '*.conf' -exec sed -i 's/listen\s\+80;/listen 8000;/g' {} \; 2>/dev/null || true
 find /etc/nginx -type f -name '*.conf' -exec sed -i 's/listen\s\+\[::\]:80;/listen [::]:8000;/g' {} \; 2>/dev/null || true
 
-# Increase nginx buffer sizes to handle browser headers (fixes 400 "Request Header Too Large" errors)
+# Increase nginx buffer sizes to handle browser headers (insert after listen directive)
 echo "[INFO] Increasing nginx buffer size limits..."
-find /etc/nginx -type f -name '*.conf' -exec sed -i '1i client_max_body_size 10G;\nlarge_client_header_buffers 4 32k;\nclient_body_buffer_size 256k;' {} \; 2>/dev/null || true
+find /etc/nginx -type f -name '*.conf' -exec sed -i '/listen.*8000/a\        client_max_body_size 10G;\n        large_client_header_buffers 4 32k;\n        client_body_buffer_size 256k;' {} \; 2>/dev/null || true
 
 # Start supervisord in foreground (will never return; s6/HA will manage signal handling)
 exec /usr/bin/supervisord -c /etc/supervisord.conf
