@@ -113,6 +113,21 @@ fi
 bashio::log.info "External URL: ${EXTERNAL_URL}"
 bashio::log.info "Seafile publish endpoint: http://${HOSTNAME_ONLY}:${PORT_ONLY}"
 
+# Home Assistant usually exposes Docker socket at /run/docker.sock.
+if [ -S /run/docker.sock ]; then
+  export DOCKER_HOST="unix:///run/docker.sock"
+elif [ -S /var/run/docker.sock ]; then
+  export DOCKER_HOST="unix:///var/run/docker.sock"
+else
+  bashio::log.error "No Docker socket found (/run/docker.sock or /var/run/docker.sock)."
+  exit 1
+fi
+
+if ! docker info >/dev/null 2>&1; then
+  bashio::log.error "Docker daemon unreachable via ${DOCKER_HOST}."
+  exit 1
+fi
+
 cd "${STACK_DIR}"
 docker compose up -d
 
