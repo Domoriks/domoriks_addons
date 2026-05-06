@@ -41,10 +41,16 @@ done
 # ---- Create MariaDB users & databases ---------------------------------
 echo "[INFO] Initializing MariaDB users and databases..."
 mysql -u root --socket=/var/run/mysqld/mysqld.sock 2>&1 <<'EOSQL'
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' IDENTIFIED BY '' WITH GRANT OPTION;
+-- Switch root@localhost from unix_socket to password auth so start.py can connect
+ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('');
+-- Grant root@127.0.0.1 for TCP connections (GRANT IDENTIFIED BY removed in MariaDB 10.11)
+CREATE USER IF NOT EXISTS 'root'@'127.0.0.1' IDENTIFIED BY '';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION;
+-- Databases
 CREATE DATABASE IF NOT EXISTS ccnet_db   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS seafile_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS seahub_db  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- Seafile users (empty password, same as DB_ROOT_PASSWD)
 CREATE USER IF NOT EXISTS 'seafile'@'127.0.0.1' IDENTIFIED BY '';
 CREATE USER IF NOT EXISTS 'seafile'@'localhost'  IDENTIFIED BY '';
 GRANT ALL PRIVILEGES ON ccnet_db.*   TO 'seafile'@'127.0.0.1';
