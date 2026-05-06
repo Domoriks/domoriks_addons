@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-# Wait for MariaDB to be ready and test login
+# Wait for MariaDB to be ready and test connection
 echo "[INFO] Waiting for MariaDB to accept connections..."
 for i in {1..30}; do
-    if mysqladmin ping -h 127.0.0.1 -u root -p'a_very_secure_password_CHANGEME' --silent >/dev/null 2>&1; then
+    if mysqladmin ping -h127.0.0.1 --silent >/dev/null 2>&1; then
         echo "[OK] MariaDB is ready and accepting connections"
         echo "[DB] MariaDB listening on 127.0.0.1:3306"
         break
