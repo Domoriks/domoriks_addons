@@ -1,10 +1,28 @@
 #!/bin/bash
 set -e
 
-# Read HA add-on config via environment variables (HA passes these)
+# Read HA add-on config defaults.
 EXTERNAL_URL="${external_url:-http://127.0.0.1:8000}"
 ADMIN_EMAIL="${admin_email:-admin@example.com}"
 ADMIN_PASSWORD="${admin_password:-a_very_secure_password_CHANGEME}"
+
+# Home Assistant stores add-on options in /data/options.json.
+# Read from there so UI config always wins over defaults.
+OPTIONS_FILE="/data/options.json"
+if [ -f "${OPTIONS_FILE}" ] && command -v jq >/dev/null 2>&1; then
+    OPT_EXTERNAL_URL="$(jq -r '.external_url // empty' "${OPTIONS_FILE}" 2>/dev/null || true)"
+    OPT_ADMIN_EMAIL="$(jq -r '.admin_email // empty' "${OPTIONS_FILE}" 2>/dev/null || true)"
+    OPT_ADMIN_PASSWORD="$(jq -r '.admin_password // empty' "${OPTIONS_FILE}" 2>/dev/null || true)"
+
+    [ -n "${OPT_EXTERNAL_URL}" ] && EXTERNAL_URL="${OPT_EXTERNAL_URL}"
+    [ -n "${OPT_ADMIN_EMAIL}" ] && ADMIN_EMAIL="${OPT_ADMIN_EMAIL}"
+    [ -n "${OPT_ADMIN_PASSWORD}" ] && ADMIN_PASSWORD="${OPT_ADMIN_PASSWORD}"
+fi
+
+# Normalize external URL so generated links are valid.
+if [[ "${EXTERNAL_URL}" != http://* && "${EXTERNAL_URL}" != https://* ]]; then
+    EXTERNAL_URL="http://${EXTERNAL_URL}"
+fi
 
 # Parse hostname from external URL
 URL_NO_SCHEME="${EXTERNAL_URL#http://}"
@@ -77,8 +95,24 @@ export SEAFILE_MYSQL_DB_CCNET_DB_NAME="ccnet_db"
 export SEAFILE_MYSQL_DB_SEAFILE_DB_NAME="seafile_db"
 export SEAFILE_MYSQL_DB_SEAHUB_DB_NAME="seahub_db"
 export INIT_SEAFILE_MYSQL_ROOT_PASSWORD=""
-export INIT_SEAFILE_ADMIN_EMAIL="${ADMIN_EMAIL}"
-export INIT_SEAFILE_ADMIN_PASSWORD="${ADMIN_PASSWORD}"
+
+# Only bootstrap admin on first initialization.
+IS_INITIALIZED=0
+if [ -d /shared/seafile/seafile-data ] || [ -d /data/seafile/seafile-data ]; then
+    IS_INITIALIZED=1
+fi
+
+if [ "${IS_INITIALIZED}" -eq 1 ]; then
+    export SEAFILE_ADMIN_EMAIL=""
+    export SEAFILE_ADMIN_PASSWORD=""
+    export INIT_SEAFILE_ADMIN_EMAIL=""
+    export INIT_SEAFILE_ADMIN_PASSWORD=""
+else
+    export SEAFILE_ADMIN_EMAIL="${ADMIN_EMAIL}"
+    export SEAFILE_ADMIN_PASSWORD="${ADMIN_PASSWORD}"
+    export INIT_SEAFILE_ADMIN_EMAIL="${ADMIN_EMAIL}"
+    export INIT_SEAFILE_ADMIN_PASSWORD="${ADMIN_PASSWORD}"
+fi
 
 echo "[INFO] Seafile add-on starting..."
 echo "[INFO] External URL: ${EXTERNAL_URL}"
@@ -86,9 +120,10 @@ echo "[INFO] Seafile hostname: ${HOSTNAME_ONLY}"
 echo "[INFO] Admin email: ${ADMIN_EMAIL}"
 echo "[INFO] SERVICE_URL: ${SERVICE_URL_VALUE}"
 echo "[INFO] FILE_SERVER_ROOT: ${FILE_SERVER_ROOT_VALUE}"
+echo "[INFO] Initialized: ${IS_INITIALIZED}"
 echo ""
 
-if [ "${ADMIN_PASSWORD}" = "a_very_secure_password_CHANGEME" ]; then
+if [ "${IS_INITIALIZED}" -eq 0 ] && [ "${ADMIN_PASSWORD}" = "a_very_secure_password_CHANGEME" ]; then
   echo "[WARNING] Using placeholder admin password. Change CHANGEME value after testing."
 fi
 
