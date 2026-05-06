@@ -3,12 +3,19 @@
 # This script runs after runit services start (including MariaDB)
 # and before the foreground process (enterpoint.sh) runs.
 
-set -e
+# Do NOT use 'set -e' here — we want to log errors but continue
+# If we exit early, the whole container shuts down
 
 echo ""
 echo "=========================================="
 echo "  INIT: MariaDB and Redis Setup"
 echo "=========================================="
+echo ""
+
+# Verify environment
+echo "[DEBUG] Database connection details:"
+echo "  DB_HOST=${DB_HOST}"
+echo "  DB_ROOT_PASSWD='${DB_ROOT_PASSWD}' (empty is OK for fresh install)"
 echo ""
 
 echo "[INFO] Waiting for MariaDB to accept connections..."
@@ -20,10 +27,11 @@ for i in {1..30}; do
     if [ $i -eq 30 ]; then
         echo "[ERROR] MariaDB failed to become ready after 30 seconds"
         echo "[DEBUG] Checking MariaDB process:"
-        ps aux | grep -i mysql || true
+        ps aux | grep -i mysqld 2>/dev/null | grep -v grep || echo "  (no mysqld process found)"
         echo "[DEBUG] Checking /var/run/mysqld:"
         ls -la /var/run/mysqld 2>/dev/null || echo "  (directory not found)"
-        exit 1
+        echo "[WARN] Continuing anyway - Seafile will retry database connection"
+        break
     fi
     echo "[WAIT] MariaDB not ready yet (attempt $i/30)..."
     sleep 1
@@ -38,8 +46,9 @@ for i in {1..30}; do
     if [ $i -eq 30 ]; then
         echo "[ERROR] Redis failed to become ready after 30 seconds"
         echo "[DEBUG] Checking Redis process:"
-        ps aux | grep -i redis || true
-        exit 1
+        ps aux | grep -i redis-server 2>/dev/null | grep -v grep || echo "  (no redis-server process found)"
+        echo "[WARN] Continuing anyway - Seafile will retry cache connection"
+        break
     fi
     echo "[WAIT] Redis not ready yet (attempt $i/30)..."
     sleep 1
@@ -73,9 +82,11 @@ GRANT ALL PRIVILEGES ON seahub_db.* TO 'seafile'@'localhost';
 
 FLUSH PRIVILEGES;
 EOSQL
-} && echo "[SUCCESS] MariaDB databases and users initialized." || {
-    echo "[ERROR] Failed to initialize MariaDB"
-    exit 1
+} && {
+    echo "[SUCCESS] MariaDB databases and users initialized."
+} || {
+    echo "[WARN] MariaDB initialization encountered an issue (this may be OK if already initialized)"
+    echo "[INFO] Continuing - Seafile's setup scripts will handle DB setup"
 }
 
 echo ""
