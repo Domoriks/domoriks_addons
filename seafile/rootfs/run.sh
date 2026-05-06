@@ -34,6 +34,42 @@ echo "[INFO] External URL: ${EXTERNAL_URL}"
 echo "[INFO] Seafile hostname: ${HOSTNAME_ONLY}"
 echo "[INFO] Admin email: ${ADMIN_EMAIL}"
 
+# Seafile 13 startup/upgrade scripts expect a .env file in /opt/seafile.
+if [ -d /opt/seafile ] && [ ! -f /opt/seafile/.env ]; then
+    echo "[INFO] Creating missing /opt/seafile/.env from add-on config..."
+    cat > /opt/seafile/.env <<EOF
+TIME_ZONE=${TIME_ZONE}
+SEAFILE_SERVER_HOSTNAME=${SEAFILE_SERVER_HOSTNAME}
+SEAFILE_SERVER_PROTOCOL=${SEAFILE_SERVER_PROTOCOL}
+SEAFILE_PUBLISH_PORT=${SEAFILE_PUBLISH_PORT}
+SEAFILE_ADMIN_EMAIL=${SEAFILE_ADMIN_EMAIL}
+SEAFILE_ADMIN_PASSWORD=${SEAFILE_ADMIN_PASSWORD}
+DB_HOST=${DB_HOST}
+DB_PORT=${DB_PORT}
+DB_ROOT_PASSWD=${DB_ROOT_PASSWD}
+REDIS_HOST=${REDIS_HOST}
+REDIS_PORT=${REDIS_PORT}
+EOF
+fi
+
+# Some upstream scripts also look under /shared/seafile/.env.
+if [ -d /shared/seafile ] && [ ! -f /shared/seafile/.env ]; then
+    echo "[INFO] Creating missing /shared/seafile/.env from add-on config..."
+    cat > /shared/seafile/.env <<EOF
+TIME_ZONE=${TIME_ZONE}
+SEAFILE_SERVER_HOSTNAME=${SEAFILE_SERVER_HOSTNAME}
+SEAFILE_SERVER_PROTOCOL=${SEAFILE_SERVER_PROTOCOL}
+SEAFILE_PUBLISH_PORT=${SEAFILE_PUBLISH_PORT}
+SEAFILE_ADMIN_EMAIL=${SEAFILE_ADMIN_EMAIL}
+SEAFILE_ADMIN_PASSWORD=${SEAFILE_ADMIN_PASSWORD}
+DB_HOST=${DB_HOST}
+DB_PORT=${DB_PORT}
+DB_ROOT_PASSWD=${DB_ROOT_PASSWD}
+REDIS_HOST=${REDIS_HOST}
+REDIS_PORT=${REDIS_PORT}
+EOF
+fi
+
 if [ "${ADMIN_PASSWORD}" = "a_very_secure_password_CHANGEME" ]; then
   echo "[WARNING] Using placeholder admin password. Change CHANGEME value after testing."
 fi
