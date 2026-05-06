@@ -70,8 +70,8 @@ fi
 BOOTSTRAP_HOSTNAME="${HOSTNAME_ONLY}"
 if [ "${IS_INITIALIZED}" -eq 0 ]; then
     if ! echo "${HOSTNAME_ONLY}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$|^[A-Za-z0-9-]+\.[A-Za-z0-9.-]+$'; then
-        BOOTSTRAP_HOSTNAME="homeassistant.local:8000"
-        echo "[INFO] Using '${BOOTSTRAP_HOSTNAME}' for first-run bootstrap; runtime URLs stay '${SERVICE_URL_VALUE}'."
+        BOOTSTRAP_HOSTNAME="127.0.0.1"
+        echo "[INFO] Single-label hostname '${HOSTNAME_ONLY}' rejected by setup; using '${BOOTSTRAP_HOSTNAME}' for first-run bootstrap. Runtime URLs stay '${SERVICE_URL_VALUE}'."
     fi
 fi
 

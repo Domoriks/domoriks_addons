@@ -179,13 +179,20 @@ patch_url_config() {
             echo "[url-fix] Patched $CONF"
         fi
     done
-    # 2) Wipe constance_config overrides so file values win (separate statements,
-    #    each checked independently so a missing table doesn't block the delete)
+    # 2) UPSERT correct values into constance_config so Seahub starts with the
+    #    right URL. DELETE-only leaves rows absent → Django falls back to hardcoded
+    #    empty defaults and generates portless URLs from the request hostname.
     if mysql -u seafile -h 127.0.0.1 -p"${pw}" seahub_db -e "SELECT 1;" >/dev/null 2>&1; then
-        mysql -u seafile -h 127.0.0.1 -p"${pw}" seahub_db \
-            -e "DELETE FROM constance_config WHERE \`key\` IN ('SERVICE_URL','FILE_SERVER_ROOT');" \
-            2>/dev/null && echo "[url-fix] constance_config rows removed" || \
-            echo "[url-fix] constance_config table not found yet (first boot) - OK"
+        mysql -u seafile -h 127.0.0.1 -p"${pw}" seahub_db 2>/dev/null <<SQLEOF
+CREATE TABLE IF NOT EXISTS constance_config (\`id\` int(11) NOT NULL AUTO_INCREMENT, \`key\` varchar(255) NOT NULL, \`value\` longtext, PRIMARY KEY (\`id\`), UNIQUE KEY \`key\` (\`key\`));
+INSERT INTO constance_config (\`key\`, \`value\`) VALUES ('SERVICE_URL', '${srv}') ON DUPLICATE KEY UPDATE \`value\` = '${srv}';
+INSERT INTO constance_config (\`key\`, \`value\`) VALUES ('FILE_SERVER_ROOT', '${fsr}') ON DUPLICATE KEY UPDATE \`value\` = '${fsr}';
+SQLEOF
+        if [ $? -eq 0 ]; then
+            echo "[url-fix] constance_config upserted: SERVICE_URL=${srv} FILE_SERVER_ROOT=${fsr}"
+        else
+            echo "[url-fix] WARN: constance_config upsert failed (first boot, table may not exist yet)"
+        fi
     fi
 }
 
@@ -211,12 +218,16 @@ for i in $(seq 1 300); do
             echo "[url-watcher] Patched $CONF"
         fi
     done
-    # Once Seahub is running, remove constance rows and restart once
+    # Once Seahub is running, constance_config is populated with portless defaults.
+    # UPSERT our correct port-inclusive values, then restart once so Seahub picks them up.
     if pgrep -f "seahub" >/dev/null 2>&1; then
-        sleep 3
-        mysql -u seafile -h 127.0.0.1 -p"${PW}" seahub_db \
-            -e "DELETE FROM constance_config WHERE \`key\` IN ('SERVICE_URL','FILE_SERVER_ROOT');" \
-            2>/dev/null && echo "[url-watcher] constance_config cleared"
+        sleep 5
+        echo "[url-watcher] Seahub up, upserting constance_config with correct URLs..."
+        mysql -u seafile -h 127.0.0.1 -p"${PW}" seahub_db 2>/dev/null <<SQLEOF
+INSERT INTO constance_config (\`key\`, \`value\`) VALUES ('SERVICE_URL', '${SRV}') ON DUPLICATE KEY UPDATE \`value\` = '${SRV}';
+INSERT INTO constance_config (\`key\`, \`value\`) VALUES ('FILE_SERVER_ROOT', '${FSR}') ON DUPLICATE KEY UPDATE \`value\` = '${FSR}';
+SQLEOF
+        echo "[url-watcher] constance_config updated: SERVICE_URL=${SRV} FILE_SERVER_ROOT=${FSR}"
         echo "[url-watcher] Restarting Seahub to load corrected URLs..."
         cd /opt/seafile/seafile-server-latest && ./seahub.sh restart 2>&1 | tail -5
         echo "[url-watcher] Done"
