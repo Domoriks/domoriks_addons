@@ -49,6 +49,22 @@ export SERVICE_URL_VALUE="${EXTERNAL_URL}"
 # Extract protocol from SERVICE_URL (keep scheme, host, port, add /seafhttp path)
 export FILE_SERVER_ROOT_VALUE="${SERVICE_URL_VALUE%/}/seafhttp"
 
+# Determine whether this is first initialization.
+export IS_INITIALIZED=0
+if [ -d /shared/seafile/seafile-data ] || [ -d /data/seafile/seafile-data ]; then
+    export IS_INITIALIZED=1
+fi
+
+# Upstream setup-seafile-mysql.sh rejects short hostnames (like "gas1c") on first boot.
+# Use a setup-safe hostname for bootstrap only; URLs are still patched to external_url later.
+BOOTSTRAP_HOSTNAME="${HOSTNAME_ONLY}"
+if [ "${IS_INITIALIZED}" -eq 0 ]; then
+    if ! echo "${HOSTNAME_ONLY}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$|^[A-Za-z0-9-]+\.[A-Za-z0-9.-]+$'; then
+        BOOTSTRAP_HOSTNAME="127.0.0.1"
+        echo "[WARN] Hostname '${HOSTNAME_ONLY}' is not valid for first-boot upstream setup; using ${BOOTSTRAP_HOSTNAME} for bootstrap."
+    fi
+fi
+
 # ---- Persistence setup ------------------------------------------------
 # /data is the only automatically persistent path in HA addons.
 # Symlink MariaDB and Seafile data directories to /data so they survive restarts.
@@ -88,7 +104,7 @@ export DB_PASSWORD=""
 export REDIS_HOST="127.0.0.1"
 export REDIS_PORT="6379"
 export TIME_ZONE="Etc/UTC"
-export SEAFILE_SERVER_HOSTNAME="${HOSTNAME_ONLY}"
+export SEAFILE_SERVER_HOSTNAME="${BOOTSTRAP_HOSTNAME}"
 export SEAFILE_SERVER_PROTOCOL="http"
 export SEAFILE_PUBLISH_PORT="80"   # nginx internal port; HA maps this to 8000 externally
 # New env-var API (post-Apr 2025 scripts) — export both old and new names
@@ -100,12 +116,6 @@ export SEAFILE_MYSQL_DB_CCNET_DB_NAME="ccnet_db"
 export SEAFILE_MYSQL_DB_SEAFILE_DB_NAME="seafile_db"
 export SEAFILE_MYSQL_DB_SEAHUB_DB_NAME="seahub_db"
 export INIT_SEAFILE_MYSQL_ROOT_PASSWORD=""
-
-# Only bootstrap admin on first initialization.
-export IS_INITIALIZED=0
-if [ -d /shared/seafile/seafile-data ] || [ -d /data/seafile/seafile-data ]; then
-    export IS_INITIALIZED=1
-fi
 
 if [ "${IS_INITIALIZED}" -eq 1 ]; then
     unset SEAFILE_ADMIN_EMAIL
