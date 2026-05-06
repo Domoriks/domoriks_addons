@@ -1,5 +1,5 @@
 name: "Seafile (Self-contained)"
-version: "0.4.3"
+version: "0.4.4"
 slug: "seafile"
 description: "Seafile CE with bundled MariaDB and Redis for LAN use"
 url: "https://github.com/Domoriks/domoriks_addons/tree/main/seafile"

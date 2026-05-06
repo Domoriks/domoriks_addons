@@ -242,6 +242,22 @@ fi
 URLEOF
 chmod +x /opt/apply_addon_urls.sh
 
+# ---- Pre-exec patch: disable hostname validation in setup-seafile-mysql.sh -----
+# The bash validation script rejects hostnames without dots. Replace validation check with success.
+for SETUP_SCRIPT in /opt/seafile/seafile-server-*/setup-seafile-mysql.sh; do
+    if [ -f "$SETUP_SCRIPT" ]; then
+        # Comment out validation conditionals that check for dots in hostname
+        sed -i \
+            -e '/^[[:space:]]*if.*hostname.*\[\[/s/^/#DISABLED# /' \
+            -e '/^[[:space:]]*if.*grep.*\./s/^/#DISABLED# /' \
+            -e '/is not a valid ip or domain/s/.*/echo "Hostname accepted for LAN"/' \
+            -e 's/exit 255/true  # Hostname validation disabled/' \
+            -e 's/exit 1  *$/true  # Hostname validation disabled/' \
+            "$SETUP_SCRIPT" 2>/dev/null || true
+        echo "[INFO] Patched $SETUP_SCRIPT for LAN hostname support"
+    fi
+done
+
 # ---- Hand off to Seafile's native entrypoint --------------------------
 echo ""
 echo "=========================================="
