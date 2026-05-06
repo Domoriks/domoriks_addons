@@ -172,8 +172,15 @@ if [ -z "${SEAFILE_SH}" ] || [ -z "${SEAHUB_SH}" ]; then
     exit 1
 fi
 
+# Some Seafile versions resolve .env relative to script working paths.
+SEAFILE_SH_DIR="$(dirname "${SEAFILE_SH}")"
+SEAFILE_ROOT_DIR="$(cd "${SEAFILE_SH_DIR}/.." && pwd)"
+ensure_env_file "${SEAFILE_SH_DIR}/.env"
+ensure_env_file "${SEAFILE_ROOT_DIR}/.env"
+
 chmod +x "${SEAFILE_SH}" "${SEAHUB_SH}" >/dev/null 2>&1 || true
 
+cd "${SEAFILE_ROOT_DIR}"
 "${SEAFILE_SH}" start
 "${SEAHUB_SH}" start-fastcgi
 
