@@ -17,7 +17,7 @@ if [ -z "${DB_PASSWORD:-}" ]; then
     if [ -f "${DB_PASS_FILE}" ]; then
         DB_PASSWORD="$(cat "${DB_PASS_FILE}")"
     else
-        DB_PASSWORD="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32)"
+        DB_PASSWORD="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
         printf '%s' "${DB_PASSWORD}" > "${DB_PASS_FILE}"
         chmod 600 "${DB_PASS_FILE}" 2>/dev/null || true
     fi
@@ -135,6 +135,33 @@ done
 
 echo "[INFO] .env locations:"
 ls -la /shared/seafile/.env /opt/seafile/.env 2>/dev/null || true
+
+# Install tiny wrappers so Seafile's runtime scripts always see .env, even if
+# upstream setup regenerates or replaces files before the actual start call.
+for d in /opt/seafile/seafile-server-*; do
+    if [ -d "$d" ]; then
+        for script_name in seafile.sh seahub.sh; do
+            script_path="$d/$script_name"
+            original_path="$d/${script_name}.orig"
+            if [ -f "$script_path" ] && [ ! -f "$original_path" ]; then
+                mv "$script_path" "$original_path"
+                cat > "$script_path" <<'EOF'
+#!/bin/bash
+set -e
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TOP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+CANONICAL_ENV="/shared/seafile/.env"
+if [ -f "$CANONICAL_ENV" ]; then
+    ln -sf "$CANONICAL_ENV" "$TOP_DIR/.env" 2>/dev/null || cp -f "$CANONICAL_ENV" "$TOP_DIR/.env"
+    ln -sf "$CANONICAL_ENV" "$SCRIPT_DIR/.env" 2>/dev/null || cp -f "$CANONICAL_ENV" "$SCRIPT_DIR/.env"
+fi
+exec "$0.orig" "$@"
+EOF
+                chmod +x "$script_path"
+            fi
+        done
+    fi
+done
 
 # ---- Hand off to Seafile's native entrypoint --------------------------
 echo ""
