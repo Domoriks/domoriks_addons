@@ -169,21 +169,39 @@ done
 
 patch_url_config() {
     local srv="$1" fsr="$2"
+    # 1) Patch config files (handles restart case where file already exists)
     for CONF in /opt/seafile/conf/seahub_settings.py /shared/seafile/conf/seahub_settings.py; do
         if [ -f "$CONF" ]; then
-            # Remove any existing values for these keys
-            sed -i '/^SERVICE_URL *=/d' "$CONF"
-            sed -i '/^FILE_SERVER_ROOT *=/d' "$CONF"
-            sed -i '/^CONSTANCE_BACKEND *=/d' "$CONF"
-            # Write corrected values
+            sed -i '/^SERVICE_URL *=/d;/^FILE_SERVER_ROOT *=/d;/^CONSTANCE_BACKEND *=/d' "$CONF"
             echo "SERVICE_URL = '${srv}'" >> "$CONF"
             echo "FILE_SERVER_ROOT = '${fsr}'" >> "$CONF"
-            # Force constance to use in-memory backend so the DB table (which stores
-            # values as pickled Python objects) can never override seahub_settings.py.
-            echo "CONSTANCE_BACKEND = 'constance.backends.memory.MemoryBackend'" >> "$CONF"
-            echo "[url-fix] Patched $CONF (SERVICE_URL=${srv}, FILE_SERVER_ROOT=${fsr}, constance=memory)"
+            echo "[url-fix] Patched $CONF"
         fi
     done
+    # 2) Update constance DB using manage.py so values are pickle-encoded correctly.
+    #    On first boot the table doesn't exist yet; the background watcher handles that.
+    set_constance_via_django "${srv}" "${fsr}"
+}
+
+set_constance_via_django() {
+    local srv="$1" fsr="$2"
+    local MANAGE
+    MANAGE="$(find /opt/seafile/seafile-server-latest/seahub -maxdepth 1 -name 'manage.py' 2>/dev/null | head -1)"
+    if [ -z "$MANAGE" ]; then
+        echo "[url-fix] manage.py not found, skipping constance DB update"
+        return
+    fi
+    python3 "$MANAGE" shell --no-input -c "
+import os, sys
+try:
+    from constance import config
+    config.SERVICE_URL = '${srv}'
+    config.FILE_SERVER_ROOT = '${fsr}'
+    print('[url-fix] constance DB updated: SERVICE_URL=${srv} FILE_SERVER_ROOT=${fsr}')
+except Exception as e:
+    print('[url-fix] constance DB update failed (first boot - ok):', e)
+    sys.exit(0)
+" 2>&1 || echo "[url-fix] manage.py shell exited non-zero (first boot - ok)"
 }
 
 patch_url_config "${SERVICE_URL_VALUE}" "${FILE_SERVER_ROOT_VALUE}"
@@ -204,25 +222,35 @@ for i in $(seq 1 300); do
         if [ -f "$CONF" ] && grep -q "^SERVICE_URL" "$CONF" 2>/dev/null; then
             if ! echo "${PATCHED_CONFS}" | grep -qF "${CONF}"; then
                 echo "[url-watcher] Config appeared at $CONF, patching..."
-                sed -i '/^SERVICE_URL *=/d' "$CONF"
-                sed -i '/^FILE_SERVER_ROOT *=/d' "$CONF"
-                sed -i '/^CONSTANCE_BACKEND *=/d' "$CONF"
+                sed -i '/^SERVICE_URL *=/d;/^FILE_SERVER_ROOT *=/d;/^CONSTANCE_BACKEND *=/d' "$CONF"
                 echo "SERVICE_URL = '${SRV}'" >> "$CONF"
                 echo "FILE_SERVER_ROOT = '${FSR}'" >> "$CONF"
-                echo "CONSTANCE_BACKEND = 'constance.backends.memory.MemoryBackend'" >> "$CONF"
                 echo "[url-watcher] Patched $CONF"
                 PATCHED_CONFS="${PATCHED_CONFS}:${CONF}"
             fi
         fi
     done
-    # Once Seahub is running, restart once so it picks up the patched config
+    # Once Seahub is running: update constance DB via manage.py, then restart once.
     if pgrep -f "seahub" >/dev/null 2>&1; then
         if [ -n "${PATCHED_CONFS}" ]; then
-            sleep 3
-            echo "[url-watcher] Restarting Seahub to load patched config..."
+            sleep 5
+            MANAGE="$(find /opt/seafile/seafile-server-latest/seahub -maxdepth 1 -name 'manage.py' 2>/dev/null | head -1)"
+            if [ -n "$MANAGE" ]; then
+                echo "[url-watcher] Updating constance DB via manage.py..."
+                python3 "$MANAGE" shell --no-input -c "
+try:
+    from constance import config
+    config.SERVICE_URL = '${SRV}'
+    config.FILE_SERVER_ROOT = '${FSR}'
+    print('[url-watcher] constance DB updated')
+except Exception as e:
+    print('[url-watcher] constance DB update error:', e)
+" 2>&1 || true
+            fi
+            echo "[url-watcher] Restarting Seahub to load corrected URLs..."
             cd /opt/seafile/seafile-server-latest && ./seahub.sh restart 2>&1 | tail -5
         else
-            echo "[url-watcher] Seahub up but no config patched yet, waiting..."
+            echo "[url-watcher] Seahub up but config not written yet, waiting..."
             sleep 2
             continue
         fi
