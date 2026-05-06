@@ -1,5 +1,5 @@
 name: "Seafile (Self-contained)"
-version: "0.1.0"
+version: "0.2.0"
 slug: "seafile"
 description: "Seafile CE with bundled MariaDB and Redis for LAN use"
 url: "https://github.com/Domoriks/domoriks_addons/tree/main/seafile"
@@ -7,9 +7,7 @@ startup: services
 boot: auto
 init: false
 arch:
-  - amd64
   - aarch64
-docker_api: true
 ports:
   8000/tcp: 8000
 ports_description:
