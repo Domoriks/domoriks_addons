@@ -168,68 +168,64 @@ done
 # For first boot the file doesn't exist yet; the background watcher handles that.
 
 patch_url_config() {
-    local srv="$1" fsr="$2" pw="$3"
-    # 1) Patch config files if they already exist (restart scenario)
+    local srv="$1" fsr="$2"
     for CONF in /opt/seafile/conf/seahub_settings.py /shared/seafile/conf/seahub_settings.py; do
         if [ -f "$CONF" ]; then
+            # Remove any existing values for these keys
             sed -i '/^SERVICE_URL *=/d' "$CONF"
             sed -i '/^FILE_SERVER_ROOT *=/d' "$CONF"
+            sed -i '/^CONSTANCE_BACKEND *=/d' "$CONF"
+            # Write corrected values
             echo "SERVICE_URL = '${srv}'" >> "$CONF"
             echo "FILE_SERVER_ROOT = '${fsr}'" >> "$CONF"
-            echo "[url-fix] Patched $CONF"
+            # Force constance to use in-memory backend so the DB table (which stores
+            # values as pickled Python objects) can never override seahub_settings.py.
+            echo "CONSTANCE_BACKEND = 'constance.backends.memory.MemoryBackend'" >> "$CONF"
+            echo "[url-fix] Patched $CONF (SERVICE_URL=${srv}, FILE_SERVER_ROOT=${fsr}, constance=memory)"
         fi
     done
-    # 2) UPSERT correct values into constance_config so Seahub starts with the
-    #    right URL. DELETE-only leaves rows absent → Django falls back to hardcoded
-    #    empty defaults and generates portless URLs from the request hostname.
-    if mysql -u seafile -h 127.0.0.1 -p"${pw}" seahub_db -e "SELECT 1;" >/dev/null 2>&1; then
-        mysql -u seafile -h 127.0.0.1 -p"${pw}" seahub_db 2>/dev/null <<SQLEOF
-CREATE TABLE IF NOT EXISTS constance_config (\`id\` int(11) NOT NULL AUTO_INCREMENT, \`key\` varchar(255) NOT NULL, \`value\` longtext, PRIMARY KEY (\`id\`), UNIQUE KEY \`key\` (\`key\`));
-INSERT INTO constance_config (\`key\`, \`value\`) VALUES ('SERVICE_URL', '${srv}') ON DUPLICATE KEY UPDATE \`value\` = '${srv}';
-INSERT INTO constance_config (\`key\`, \`value\`) VALUES ('FILE_SERVER_ROOT', '${fsr}') ON DUPLICATE KEY UPDATE \`value\` = '${fsr}';
-SQLEOF
-        if [ $? -eq 0 ]; then
-            echo "[url-fix] constance_config upserted: SERVICE_URL=${srv} FILE_SERVER_ROOT=${fsr}"
-        else
-            echo "[url-fix] WARN: constance_config upsert failed (first boot, table may not exist yet)"
-        fi
-    fi
 }
 
-patch_url_config "${SERVICE_URL_VALUE}" "${FILE_SERVER_ROOT_VALUE}" "${DB_PASSWORD}"
+patch_url_config "${SERVICE_URL_VALUE}" "${FILE_SERVER_ROOT_VALUE}"
 
 # ---- First-boot background watcher ------------------------------------
 # On first boot setup-seafile-mysql.py creates seahub_settings.py during startup.
 # Watch for it and patch once it appears, then restart Seahub once.
 cat > /opt/apply_addon_urls.sh <<'URLEOF'
 #!/bin/bash
-SRV="$1"; FSR="$2"; PW="$3"
+SRV="$1"; FSR="$2"
 echo "[url-watcher] Waiting for seahub_settings.py (first-boot only)..."
 
 # Wait until the file exists AND has a SERVICE_URL entry (= setup finished writing it)
+PATCHED_CONFS=""
 for i in $(seq 1 300); do
     for CONF in /opt/seafile/conf/seahub_settings.py /shared/seafile/conf/seahub_settings.py; do
+        # Only patch each file once (track by path)
         if [ -f "$CONF" ] && grep -q "^SERVICE_URL" "$CONF" 2>/dev/null; then
-            echo "[url-watcher] Config appeared, patching..."
-            sed -i '/^SERVICE_URL *=/d' "$CONF"
-            sed -i '/^FILE_SERVER_ROOT *=/d' "$CONF"
-            echo "SERVICE_URL = '${SRV}'" >> "$CONF"
-            echo "FILE_SERVER_ROOT = '${FSR}'" >> "$CONF"
-            echo "[url-watcher] Patched $CONF"
+            if ! echo "${PATCHED_CONFS}" | grep -qF "${CONF}"; then
+                echo "[url-watcher] Config appeared at $CONF, patching..."
+                sed -i '/^SERVICE_URL *=/d' "$CONF"
+                sed -i '/^FILE_SERVER_ROOT *=/d' "$CONF"
+                sed -i '/^CONSTANCE_BACKEND *=/d' "$CONF"
+                echo "SERVICE_URL = '${SRV}'" >> "$CONF"
+                echo "FILE_SERVER_ROOT = '${FSR}'" >> "$CONF"
+                echo "CONSTANCE_BACKEND = 'constance.backends.memory.MemoryBackend'" >> "$CONF"
+                echo "[url-watcher] Patched $CONF"
+                PATCHED_CONFS="${PATCHED_CONFS}:${CONF}"
+            fi
         fi
     done
-    # Once Seahub is running, constance_config is populated with portless defaults.
-    # UPSERT our correct port-inclusive values, then restart once so Seahub picks them up.
+    # Once Seahub is running, restart once so it picks up the patched config
     if pgrep -f "seahub" >/dev/null 2>&1; then
-        sleep 5
-        echo "[url-watcher] Seahub up, upserting constance_config with correct URLs..."
-        mysql -u seafile -h 127.0.0.1 -p"${PW}" seahub_db 2>/dev/null <<SQLEOF
-INSERT INTO constance_config (\`key\`, \`value\`) VALUES ('SERVICE_URL', '${SRV}') ON DUPLICATE KEY UPDATE \`value\` = '${SRV}';
-INSERT INTO constance_config (\`key\`, \`value\`) VALUES ('FILE_SERVER_ROOT', '${FSR}') ON DUPLICATE KEY UPDATE \`value\` = '${FSR}';
-SQLEOF
-        echo "[url-watcher] constance_config updated: SERVICE_URL=${SRV} FILE_SERVER_ROOT=${FSR}"
-        echo "[url-watcher] Restarting Seahub to load corrected URLs..."
-        cd /opt/seafile/seafile-server-latest && ./seahub.sh restart 2>&1 | tail -5
+        if [ -n "${PATCHED_CONFS}" ]; then
+            sleep 3
+            echo "[url-watcher] Restarting Seahub to load patched config..."
+            cd /opt/seafile/seafile-server-latest && ./seahub.sh restart 2>&1 | tail -5
+        else
+            echo "[url-watcher] Seahub up but no config patched yet, waiting..."
+            sleep 2
+            continue
+        fi
         echo "[url-watcher] Done"
         exit 0
     fi
@@ -248,7 +244,7 @@ echo ""
 
 # On first boot, launch the background watcher before enterpoint creates the config
 if [ "${IS_INITIALIZED:-0}" -eq 0 ]; then
-    /opt/apply_addon_urls.sh "${SERVICE_URL_VALUE}" "${FILE_SERVER_ROOT_VALUE}" "${DB_PASSWORD}" &
+    /opt/apply_addon_urls.sh "${SERVICE_URL_VALUE}" "${FILE_SERVER_ROOT_VALUE}" &
 fi
 
 # Ensure the generated .env is exported into the upstream startup process.
