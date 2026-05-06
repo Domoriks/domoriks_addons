@@ -118,6 +118,24 @@ INIT_SEAFILE_ADMIN_PASSWORD=${INIT_SEAFILE_ADMIN_PASSWORD:-${SEAFILE_ADMIN_PASSW
 EOF
 echo "[OK] .env written."
 
+# Seafile scripts in newer images may look for .env from /opt/seafile or
+# from inside seafile-server-* directories. Link/copy it to all known paths.
+OPT_ENV_FILE="/opt/seafile/.env"
+ln -sf "${ENV_FILE}" "${OPT_ENV_FILE}" 2>/dev/null || cp -f "${ENV_FILE}" "${OPT_ENV_FILE}"
+
+if [ -d /opt/seafile/seafile-server-latest ]; then
+    ln -sf "${ENV_FILE}" /opt/seafile/seafile-server-latest/.env 2>/dev/null || cp -f "${ENV_FILE}" /opt/seafile/seafile-server-latest/.env
+fi
+
+for d in /opt/seafile/seafile-server-*; do
+    if [ -d "$d" ]; then
+        ln -sf "${ENV_FILE}" "$d/.env" 2>/dev/null || cp -f "${ENV_FILE}" "$d/.env"
+    fi
+done
+
+echo "[INFO] .env locations:"
+ls -la /shared/seafile/.env /opt/seafile/.env 2>/dev/null || true
+
 # ---- Hand off to Seafile's native entrypoint --------------------------
 echo ""
 echo "=========================================="
