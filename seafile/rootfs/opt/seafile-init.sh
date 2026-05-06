@@ -163,71 +163,46 @@ for i in $(seq 1 30); do
 done
 
 # ---- Create apply_addon_urls.sh hook -----------------------------------
-# The upstream enterpoint.sh generates seahub_settings.py during first-run setup
-# and OVERWRITES any prior values. This hook waits for it to appear, then patches it.
+# Safety net: verify seahub_settings.py has correct URLs after upstream generates it.
+# With correct .env values, start.py should set these natively, but we patch as insurance.
 cat > /opt/apply_addon_urls.sh <<'URLEOF'
 #!/bin/bash
-# Patch seahub_settings.py with addon URLs.
-# On first boot, setup-seafile-mysql.py regenerates the file AFTER we first patch it.
-# Solution: keep patching until Seahub is running with correct URLs.
-# If Seahub started with wrong URLs, restart it after patching.
 SERVICE_URL_VALUE="$1"
 FILE_SERVER_ROOT_VALUE="$2"
 
-patch_configs() {
-    local changed=0
-    for _CONF in /opt/seafile/conf/seahub_settings.py /shared/seafile/conf/seahub_settings.py; do
-        if [ -f "$_CONF" ]; then
-            # Already correct?
-            if grep -qF "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" "$_CONF" 2>/dev/null; then
-                continue
-            fi
-            sed -i '/^SERVICE_URL *=/d' "$_CONF"
-            sed -i '/^FILE_SERVER_ROOT *=/d' "$_CONF"
-            echo "SERVICE_URL = '${SERVICE_URL_VALUE}'" >> "$_CONF"
-            echo "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" >> "$_CONF"
-            echo "[apply_addon_urls] Patched $_CONF"
-            changed=1
-        fi
-    done
-    return $changed  # 0 = nothing changed (already correct or no file), 1 = patched
-}
-
-# Phase 1: Wait for seahub_settings.py to exist
-for i in $(seq 1 180); do
-    if [ -f /opt/seafile/conf/seahub_settings.py ] || [ -f /shared/seafile/conf/seahub_settings.py ]; then
+# Wait for Seahub to fully start
+for i in $(seq 1 300); do
+    if pgrep -f "seahub.wsgi" >/dev/null 2>&1; then
         break
     fi
     sleep 1
 done
 
-# Phase 2: Poll aggressively until Seahub is running AND URLs are correct
+# Give Seahub a moment to fully initialize
+sleep 3
+
+# Check and fix URLs in all config locations
 NEED_RESTART=0
-for i in $(seq 1 300); do
-    patch_configs
-    PATCHED=$?
-
-    # If we patched while Seahub was already running, it needs a restart
-    if [ $PATCHED -eq 1 ] && pgrep -f "seahub.wsgi" >/dev/null 2>&1; then
-        NEED_RESTART=1
-    fi
-
-    # Check if Seahub is running and config is correct
-    if pgrep -f "seahub.wsgi" >/dev/null 2>&1; then
-        # Verify URLs are correct in the actual file
-        if grep -qF "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" /opt/seafile/conf/seahub_settings.py 2>/dev/null || \
-           grep -qF "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" /shared/seafile/conf/seahub_settings.py 2>/dev/null; then
-            if [ $NEED_RESTART -eq 1 ]; then
-                echo "[apply_addon_urls] Restarting Seahub to pick up corrected URLs..."
-                cd /opt/seafile/seafile-server-latest && ./seahub.sh restart 2>&1 | tail -3
-            fi
-            echo "[apply_addon_urls] URL config applied successfully"
-            exit 0
+for _CONF in /opt/seafile/conf/seahub_settings.py /shared/seafile/conf/seahub_settings.py; do
+    if [ -f "$_CONF" ]; then
+        if ! grep -qF "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" "$_CONF" 2>/dev/null; then
+            sed -i '/^SERVICE_URL *=/d' "$_CONF"
+            sed -i '/^FILE_SERVER_ROOT *=/d' "$_CONF"
+            echo "SERVICE_URL = '${SERVICE_URL_VALUE}'" >> "$_CONF"
+            echo "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" >> "$_CONF"
+            echo "[apply_addon_urls] Patched $_CONF"
+            NEED_RESTART=1
         fi
     fi
-    sleep 1
 done
-echo "[apply_addon_urls] Timeout waiting for correct URLs"
+
+if [ $NEED_RESTART -eq 1 ]; then
+    echo "[apply_addon_urls] Restarting Seahub to apply corrected URLs..."
+    cd /opt/seafile/seafile-server-latest && ./seahub.sh restart 2>&1 | tail -3
+    echo "[apply_addon_urls] URL config applied after restart"
+else
+    echo "[apply_addon_urls] URLs already correct, no action needed"
+fi
 URLEOF
 chmod +x /opt/apply_addon_urls.sh
 

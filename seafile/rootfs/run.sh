@@ -65,15 +65,9 @@ if [ -d /shared/seafile/seafile-data ] || [ -d /data/seafile/seafile-data ]; the
     export IS_INITIALIZED=1
 fi
 
-# Upstream setup-seafile-mysql.sh rejects short hostnames (like "gas1c") on first boot.
-# Use a setup-safe hostname for bootstrap only; URLs are still patched to external_url later.
-BOOTSTRAP_HOSTNAME="${HOSTNAME_ONLY}"
-if [ "${IS_INITIALIZED}" -eq 0 ]; then
-    if ! echo "${HOSTNAME_ONLY}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$|^[A-Za-z0-9-]+\.[A-Za-z0-9.-]+$'; then
-        BOOTSTRAP_HOSTNAME="127.0.0.1"
-        echo "[INFO] Using '${BOOTSTRAP_HOSTNAME}' for bootstrap (upstream requires FQDN/IP); URLs will be patched to '${HOSTNAME_ONLY}' after setup."
-    fi
-fi
+# Upstream setup-seafile-mysql.py hostname validation has been patched in Dockerfile
+# to accept single-label hostnames (like "gas1c") for LAN deployments.
+# Always use the real hostname from the user's external_url.
 
 # ---- Persistence setup ------------------------------------------------
 # /data is the only automatically persistent path in HA addons.
@@ -116,7 +110,7 @@ export DB_PASSWORD=""
 export REDIS_HOST="127.0.0.1"
 export REDIS_PORT="6379"
 export TIME_ZONE="Etc/UTC"
-export SEAFILE_SERVER_HOSTNAME="${BOOTSTRAP_HOSTNAME}"
+export SEAFILE_SERVER_HOSTNAME="${HOSTNAME_ONLY}"
 export SEAFILE_SERVER_PROTOCOL="http"
 export SEAFILE_PUBLISH_PORT="${URL_PORT}"   # external port from user's URL; upstream uses this to generate SERVICE_URL/FILE_SERVER_ROOT
 # New env-var API (post-Apr 2025 scripts) — export both old and new names
