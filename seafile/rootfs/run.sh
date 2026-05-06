@@ -18,9 +18,11 @@ fi
 
 # Derive SERVICE_URL and FILE_SERVER_ROOT for seahub_settings.py
 # SERVICE_URL = the full external URL (what users type in browser / client)
-# FILE_SERVER_ROOT = same host but port 8082 (direct fileserver access)
+# FILE_SERVER_ROOT = use SERVICE_URL with /seafhttp path for downloads via nginx proxy
+# This allows both web UI downloads and native client sync to work through the same port
 export SERVICE_URL_VALUE="${EXTERNAL_URL}"
-export FILE_SERVER_ROOT_VALUE="http://${HOSTNAME_ONLY}:8082"
+# Extract protocol from SERVICE_URL (keep scheme, host, port, add /seafhttp path)
+export FILE_SERVER_ROOT_VALUE="${SERVICE_URL_VALUE%/}/seafhttp"
 
 # ---- Persistence setup ------------------------------------------------
 # /data is the only automatically persistent path in HA addons.
