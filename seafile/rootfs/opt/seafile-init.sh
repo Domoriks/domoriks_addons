@@ -146,6 +146,22 @@ fi
 echo "[INFO] .env locations:"
 ls -la /shared/seafile/.env /opt/seafile/conf/.env /opt/seafile/.env 2>/dev/null || true
 
+# ---- Pre-flight DB connectivity check ----------------------------------
+# Ensure the seafile user can connect to all three databases before upstream init
+# This prevents "Got an error reading communication packets" errors during setup
+echo "[INFO] Waiting for database connectivity as seafile user..."
+for i in $(seq 1 30); do
+    RESULT=$(mysql -u seafile -h 127.0.0.1 -p"${DB_PASSWORD}" -e "SELECT 1;" 2>&1 | grep -c "1" || echo "0")
+    if [ "${RESULT}" -gt 0 ]; then
+        echo "[OK] Database connectivity verified (${i}s)"
+        break
+    fi
+    if [ "$i" -eq 30 ]; then
+        echo "[WARN] Database connectivity test failed after 30s, continuing anyway"
+    fi
+    sleep 1
+done
+
 # ---- Create apply_addon_urls.sh hook -----------------------------------
 # The upstream enterpoint.sh generates seahub_settings.py during first-run setup
 # and OVERWRITES any prior values. This hook waits for it to appear, then patches it.
