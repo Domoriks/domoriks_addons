@@ -16,6 +16,12 @@ if [ -z "${HOSTNAME_ONLY}" ]; then
     HOSTNAME_ONLY="127.0.0.1"
 fi
 
+# Derive SERVICE_URL and FILE_SERVER_ROOT for seahub_settings.py
+# SERVICE_URL = the full external URL (what users type in browser / client)
+# FILE_SERVER_ROOT = same host but port 8082 (direct fileserver access)
+export SERVICE_URL_VALUE="${EXTERNAL_URL}"
+export FILE_SERVER_ROOT_VALUE="http://${HOSTNAME_ONLY}:8082"
+
 # Set environment for Seafile to connect to local services
 export DB_HOST="127.0.0.1"
 export DB_PORT="3306"

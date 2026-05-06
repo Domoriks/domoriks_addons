@@ -146,6 +146,47 @@ fi
 echo "[INFO] .env locations:"
 ls -la /shared/seafile/.env /opt/seafile/conf/.env /opt/seafile/.env 2>/dev/null || true
 
+# ---- Write SERVICE_URL and FILE_SERVER_ROOT to seahub_settings.py ------
+# These tell the web UI and native clients where to reach the fileserver.
+# Without them, uploads/downloads/sync fail because the upstream image defaults
+# to internal nginx paths that don't match our external port mapping.
+SEAHUB_SETTINGS="/shared/seafile/conf/seahub_settings.py"
+mkdir -p /shared/seafile/conf
+touch "${SEAHUB_SETTINGS}"
+
+# Remove any existing lines to avoid duplicates
+sed -i '/^SERVICE_URL *=/d' "${SEAHUB_SETTINGS}"
+sed -i '/^FILE_SERVER_ROOT *=/d' "${SEAHUB_SETTINGS}"
+
+# Append correct values
+echo "SERVICE_URL = '${SERVICE_URL_VALUE}'" >> "${SEAHUB_SETTINGS}"
+echo "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" >> "${SEAHUB_SETTINGS}"
+echo "[OK] seahub_settings.py: SERVICE_URL=${SERVICE_URL_VALUE}, FILE_SERVER_ROOT=${FILE_SERVER_ROOT_VALUE}"
+
+# ---- Create apply_addon_urls.sh hook -----------------------------------
+# The upstream enterpoint.sh / write_config.sh may overwrite our settings on
+# first run. This helper re-applies them right before Seafile services start.
+cat > /opt/apply_addon_urls.sh <<URLEOF
+#!/bin/bash
+for _CONF in /shared/seafile/conf/seahub_settings.py /opt/seafile/conf/seahub_settings.py; do
+    if [ -f "\$_CONF" ]; then
+        sed -i '/^SERVICE_URL *=/d' "\$_CONF"
+        sed -i '/^FILE_SERVER_ROOT *=/d' "\$_CONF"
+        echo "SERVICE_URL = '${SERVICE_URL_VALUE}'" >> "\$_CONF"
+        echo "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" >> "\$_CONF"
+    fi
+done
+URLEOF
+chmod +x /opt/apply_addon_urls.sh
+
+# Inject the hook into Seafile's launch sequence so it runs after upstream init
+if [ -f /scripts/enterpoint.sh ]; then
+    # Insert our hook call before the final exec/start of seafile services
+    if ! grep -q 'apply_addon_urls.sh' /scripts/enterpoint.sh 2>/dev/null; then
+        sed -i '1a\/opt/apply_addon_urls.sh' /scripts/enterpoint.sh 2>/dev/null || true
+    fi
+fi
+
 # ---- Hand off to Seafile's native entrypoint --------------------------
 echo ""
 echo "=========================================="
