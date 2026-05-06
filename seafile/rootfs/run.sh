@@ -43,6 +43,13 @@ echo "[INFO] Seafile add-on starting..."
 echo "[INFO] External URL: ${EXTERNAL_URL}"
 echo "[INFO] Seafile hostname: ${HOSTNAME_ONLY}"
 echo "[INFO] Admin email: ${ADMIN_EMAIL}"
+echo "[INFO] Exporting environment variables for Seafile..."
+echo "  DB_HOST=${DB_HOST}"
+echo "  DB_USER=${DB_USER}"
+echo "  REDIS_HOST=${REDIS_HOST}"
+echo "  SEAFILE_SERVER_HOSTNAME=${SEAFILE_SERVER_HOSTNAME}"
+echo "  SEAFILE_PUBLISH_PORT=${SEAFILE_PUBLISH_PORT}"
+echo ""
 
 # Seafile 13 startup/upgrade scripts expect a .env file in /opt/seafile.
 if [ -d /opt/seafile ] && [ ! -f /opt/seafile/.env ]; then
