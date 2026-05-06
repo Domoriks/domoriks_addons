@@ -56,7 +56,9 @@ echo "[SEAFILE] Database: MariaDB @ 127.0.0.1:3306"
 echo "[SEAFILE] Cache: Redis @ 127.0.0.1:6379"
 echo "[SEAFILE] Web server: http://127.0.0.1:8000"
 echo "=========================================="
+echo ""
 
-# Use the image's designed startup: my_init (runit/nginx) + enterpoint.sh → start.py
-# start.py handles: DB init, upgrade checks, seafile.sh start, seahub.sh start
+# Image's native startup: my_init (runit daemon + service scripts) + enterpoint.sh → start.py.
+# start.py handles: DB init, migrations, upgrade checks, and starts seafile.sh + seahub.sh.
+# runit keeps nginx, mariadb, redis as services; enterpoint.sh monitors them.
 exec /sbin/my_init -- /scripts/enterpoint.sh
