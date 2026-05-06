@@ -165,28 +165,58 @@ done
 # ---- Create apply_addon_urls.sh hook -----------------------------------
 # The upstream enterpoint.sh generates seahub_settings.py during first-run setup
 # and OVERWRITES any prior values. This hook waits for it to appear, then patches it.
-cat > /opt/apply_addon_urls.sh <<URLEOF
+cat > /opt/apply_addon_urls.sh <<'URLEOF'
 #!/bin/bash
-# Wait for upstream to generate seahub_settings.py, then patch it with addon URLs
-for i in \$(seq 1 120); do
+# Patch seahub_settings.py with addon URLs.
+# On first boot, setup-seafile-mysql.py regenerates the file AFTER we first patch it.
+# Solution: keep patching until Seahub is running AND our URLs are in place.
+SERVICE_URL_VALUE="$1"
+FILE_SERVER_ROOT_VALUE="$2"
+
+patch_configs() {
+    local patched=0
     for _CONF in /opt/seafile/conf/seahub_settings.py /shared/seafile/conf/seahub_settings.py; do
-        if [ -f "\$_CONF" ]; then
-            sed -i '/^SERVICE_URL *=/d' "\$_CONF"
-            sed -i '/^FILE_SERVER_ROOT *=/d' "\$_CONF"
-            echo "SERVICE_URL = '${SERVICE_URL_VALUE}'" >> "\$_CONF"
-            echo "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" >> "\$_CONF"
-            echo "[apply_addon_urls] Patched \$_CONF"
+        if [ -f "$_CONF" ]; then
+            # Check if already correct
+            if grep -qF "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" "$_CONF" 2>/dev/null; then
+                patched=1
+                continue
+            fi
+            sed -i '/^SERVICE_URL *=/d' "$_CONF"
+            sed -i '/^FILE_SERVER_ROOT *=/d' "$_CONF"
+            echo "SERVICE_URL = '${SERVICE_URL_VALUE}'" >> "$_CONF"
+            echo "FILE_SERVER_ROOT = '${FILE_SERVER_ROOT_VALUE}'" >> "$_CONF"
+            echo "[apply_addon_urls] Patched $_CONF"
+            patched=1
         fi
     done
-    # If at least one was patched, we're done
-    if grep -q "FILE_SERVER_ROOT" /opt/seafile/conf/seahub_settings.py 2>/dev/null || \
-       grep -q "FILE_SERVER_ROOT" /shared/seafile/conf/seahub_settings.py 2>/dev/null; then
-        echo "[apply_addon_urls] URL config applied successfully"
-        exit 0
+    return $((1 - patched))
+}
+
+# Phase 1: Wait for any seahub_settings.py to appear and patch it
+for i in $(seq 1 120); do
+    if patch_configs; then
+        echo "[apply_addon_urls] Initial patch applied"
+        break
     fi
     sleep 2
 done
-echo "[apply_addon_urls] WARNING: seahub_settings.py not found after 240s"
+
+# Phase 2: Keep monitoring until Seahub is running (setup complete) and URLs are correct.
+# On first boot, setup-seafile-mysql.py will overwrite our patch; we re-apply after.
+for i in $(seq 1 90); do
+    sleep 3
+    patch_configs
+    # Check if Seahub (gunicorn) is running - means setup is done
+    if pgrep -f "seahub" >/dev/null 2>&1; then
+        # Final patch to be sure
+        sleep 2
+        patch_configs
+        echo "[apply_addon_urls] URL config applied successfully (Seahub running)"
+        exit 0
+    fi
+done
+echo "[apply_addon_urls] Timeout waiting for Seahub, URLs may not be applied"
 URLEOF
 chmod +x /opt/apply_addon_urls.sh
 
@@ -196,6 +226,6 @@ echo "=========================================="
 echo "  Starting Seafile (enterpoint.sh)"
 echo "=========================================="
 echo ""
-# Launch URL patcher in background - it will monitor and patch config as it appears
-/opt/apply_addon_urls.sh &
+# Launch URL patcher in background - it will monitor and re-patch config until Seahub is running
+/opt/apply_addon_urls.sh "${SERVICE_URL_VALUE}" "${FILE_SERVER_ROOT_VALUE}" &
 exec /scripts/enterpoint.sh

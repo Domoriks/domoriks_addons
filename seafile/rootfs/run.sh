@@ -61,7 +61,7 @@ BOOTSTRAP_HOSTNAME="${HOSTNAME_ONLY}"
 if [ "${IS_INITIALIZED}" -eq 0 ]; then
     if ! echo "${HOSTNAME_ONLY}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$|^[A-Za-z0-9-]+\.[A-Za-z0-9.-]+$'; then
         BOOTSTRAP_HOSTNAME="127.0.0.1"
-        echo "[WARN] Hostname '${HOSTNAME_ONLY}' is not valid for first-boot upstream setup; using ${BOOTSTRAP_HOSTNAME} for bootstrap."
+        echo "[INFO] Using '${BOOTSTRAP_HOSTNAME}' for bootstrap (upstream requires FQDN/IP); URLs will be patched to '${HOSTNAME_ONLY}' after setup."
     fi
 fi
 
