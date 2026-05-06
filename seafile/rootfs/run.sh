@@ -18,8 +18,10 @@ fi
 
 # Set environment for Seafile to connect to local services
 export DB_HOST="127.0.0.1"
-export DB_ROOT_PASSWD="a_very_secure_password_CHANGEME"
 export DB_PORT="3306"
+export DB_ROOT_PASSWD=""
+export DB_USER="seafile"
+export DB_PASSWORD="${ADMIN_PASSWORD}"
 export REDIS_HOST="127.0.0.1"
 export REDIS_PORT="6379"
 export TIME_ZONE="Etc/UTC"
@@ -28,6 +30,14 @@ export SEAFILE_ADMIN_PASSWORD="${ADMIN_PASSWORD}"
 export SEAFILE_SERVER_HOSTNAME="${HOSTNAME_ONLY}"
 export SEAFILE_SERVER_PROTOCOL="http"
 export SEAFILE_PUBLISH_PORT="8000"
+# New env-var API (post-Apr 2025 scripts) — export both old and new names
+export SEAFILE_MYSQL_DB_HOST="127.0.0.1"
+export SEAFILE_MYSQL_DB_PORT="3306"
+export SEAFILE_MYSQL_DB_USER="seafile"
+export SEAFILE_MYSQL_DB_PASSWORD="${ADMIN_PASSWORD}"
+export INIT_SEAFILE_MYSQL_ROOT_PASSWORD=""
+export INIT_SEAFILE_ADMIN_EMAIL="${ADMIN_EMAIL}"
+export INIT_SEAFILE_ADMIN_PASSWORD="${ADMIN_PASSWORD}"
 
 echo "[INFO] Seafile add-on starting..."
 echo "[INFO] External URL: ${EXTERNAL_URL}"
