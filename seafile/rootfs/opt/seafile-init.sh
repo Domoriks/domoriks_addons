@@ -9,6 +9,22 @@ echo "  Seafile DB Initialization"
 echo "=========================================="
 echo ""
 
+# Ensure Seafile DB user has a real password. If none is provided, generate one
+# once and persist it under /shared/seafile for subsequent restarts.
+DB_PASS_FILE="/shared/seafile/.db_password"
+mkdir -p /shared/seafile
+if [ -z "${DB_PASSWORD:-}" ]; then
+    if [ -f "${DB_PASS_FILE}" ]; then
+        DB_PASSWORD="$(cat "${DB_PASS_FILE}")"
+    else
+        DB_PASSWORD="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32)"
+        printf '%s' "${DB_PASSWORD}" > "${DB_PASS_FILE}"
+        chmod 600 "${DB_PASS_FILE}" 2>/dev/null || true
+    fi
+fi
+export DB_PASSWORD
+export SEAFILE_MYSQL_DB_PASSWORD="${SEAFILE_MYSQL_DB_PASSWORD:-${DB_PASSWORD}}"
+
 # ---- Wait for MariaDB --------------------------------------------------
 echo "[INFO] Waiting for MariaDB..."
 for i in $(seq 1 60); do
@@ -40,7 +56,7 @@ done
 
 # ---- Create MariaDB users & databases ---------------------------------
 echo "[INFO] Initializing MariaDB users and databases..."
-mysql -u root --socket=/var/run/mysqld/mysqld.sock 2>&1 <<'EOSQL'
+mysql -u root --socket=/var/run/mysqld/mysqld.sock 2>&1 <<EOSQL
 -- Switch root@localhost from unix_socket to password auth so start.py can connect
 ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('');
 -- Grant root@127.0.0.1 for TCP connections (GRANT IDENTIFIED BY removed in MariaDB 10.11)
@@ -50,9 +66,11 @@ GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION;
 CREATE DATABASE IF NOT EXISTS ccnet_db   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS seafile_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS seahub_db  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
--- Seafile users (empty password, same as DB_ROOT_PASSWD)
-CREATE USER IF NOT EXISTS 'seafile'@'127.0.0.1' IDENTIFIED BY '';
-CREATE USER IF NOT EXISTS 'seafile'@'localhost'  IDENTIFIED BY '';
+-- Seafile users
+CREATE USER IF NOT EXISTS 'seafile'@'127.0.0.1' IDENTIFIED BY '${DB_PASSWORD}';
+CREATE USER IF NOT EXISTS 'seafile'@'localhost'  IDENTIFIED BY '${DB_PASSWORD}';
+ALTER USER 'seafile'@'127.0.0.1' IDENTIFIED BY '${DB_PASSWORD}';
+ALTER USER 'seafile'@'localhost'  IDENTIFIED BY '${DB_PASSWORD}';
 GRANT ALL PRIVILEGES ON ccnet_db.*   TO 'seafile'@'127.0.0.1';
 GRANT ALL PRIVILEGES ON seafile_db.* TO 'seafile'@'127.0.0.1';
 GRANT ALL PRIVILEGES ON seahub_db.*  TO 'seafile'@'127.0.0.1';
@@ -72,9 +90,8 @@ fi
 ENV_DIR="/shared/seafile"
 mkdir -p "${ENV_DIR}"
 ENV_FILE="${ENV_DIR}/.env"
-if [ ! -f "${ENV_FILE}" ]; then
-    echo "[INFO] Writing ${ENV_FILE}..."
-    cat > "${ENV_FILE}" <<EOF
+echo "[INFO] Writing ${ENV_FILE}..."
+cat > "${ENV_FILE}" <<EOF
 TIME_ZONE=${TIME_ZONE:-Etc/UTC}
 SEAFILE_SERVER_HOSTNAME=${SEAFILE_SERVER_HOSTNAME}
 SEAFILE_SERVER_PROTOCOL=${SEAFILE_SERVER_PROTOCOL:-http}
@@ -83,14 +100,23 @@ SEAFILE_ADMIN_EMAIL=${SEAFILE_ADMIN_EMAIL}
 SEAFILE_ADMIN_PASSWORD=${SEAFILE_ADMIN_PASSWORD}
 DB_HOST=${DB_HOST:-127.0.0.1}
 DB_PORT=${DB_PORT:-3306}
+DB_USER=${DB_USER:-seafile}
+DB_PASSWORD=${DB_PASSWORD:-}
 DB_ROOT_PASSWD=${DB_ROOT_PASSWD:-}
 REDIS_HOST=${REDIS_HOST:-127.0.0.1}
 REDIS_PORT=${REDIS_PORT:-6379}
+SEAFILE_MYSQL_DB_HOST=${SEAFILE_MYSQL_DB_HOST:-127.0.0.1}
+SEAFILE_MYSQL_DB_PORT=${SEAFILE_MYSQL_DB_PORT:-3306}
+SEAFILE_MYSQL_DB_USER=${SEAFILE_MYSQL_DB_USER:-seafile}
+SEAFILE_MYSQL_DB_PASSWORD=${SEAFILE_MYSQL_DB_PASSWORD:-}
+SEAFILE_MYSQL_DB_CCNET_DB_NAME=${SEAFILE_MYSQL_DB_CCNET_DB_NAME:-ccnet_db}
+SEAFILE_MYSQL_DB_SEAFILE_DB_NAME=${SEAFILE_MYSQL_DB_SEAFILE_DB_NAME:-seafile_db}
+SEAFILE_MYSQL_DB_SEAHUB_DB_NAME=${SEAFILE_MYSQL_DB_SEAHUB_DB_NAME:-seahub_db}
+INIT_SEAFILE_MYSQL_ROOT_PASSWORD=${INIT_SEAFILE_MYSQL_ROOT_PASSWORD:-}
+INIT_SEAFILE_ADMIN_EMAIL=${INIT_SEAFILE_ADMIN_EMAIL:-${SEAFILE_ADMIN_EMAIL}}
+INIT_SEAFILE_ADMIN_PASSWORD=${INIT_SEAFILE_ADMIN_PASSWORD:-${SEAFILE_ADMIN_PASSWORD}}
 EOF
-    echo "[OK] .env written."
-else
-    echo "[INFO] ${ENV_FILE} already exists, skipping."
-fi
+echo "[OK] .env written."
 
 # ---- Hand off to Seafile's native entrypoint --------------------------
 echo ""
