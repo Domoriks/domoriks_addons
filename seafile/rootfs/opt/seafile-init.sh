@@ -17,8 +17,22 @@ for i in {1..30}; do
 done
 
 # Ensure root@127.0.0.1 exists for TCP connections (mysql_install_db only creates root@localhost socket user)
-echo "[INFO] Creating TCP access for MariaDB root user..."
-mysql -u root --socket=/var/run/mysqld/mysqld.sock -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION; FLUSH PRIVILEGES;" 2>/dev/null || true
+echo "[INFO] Initializing MariaDB users for Seafile..."
+mysql -u root --socket=/var/run/mysqld/mysqld.sock -e "
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION;
+CREATE DATABASE IF NOT EXISTS ccnet_db DEFAULT CHARACTER SET utf8;
+CREATE DATABASE IF NOT EXISTS seafile_db DEFAULT CHARACTER SET utf8;
+CREATE DATABASE IF NOT EXISTS seahub_db DEFAULT CHARACTER SET utf8;
+CREATE USER IF NOT EXISTS 'seafile'@'127.0.0.1' IDENTIFIED BY '';
+CREATE USER IF NOT EXISTS 'seafile'@'localhost' IDENTIFIED BY '';
+GRANT ALL PRIVILEGES ON ccnet_db.* TO 'seafile'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON seafile_db.* TO 'seafile'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON seahub_db.* TO 'seafile'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON ccnet_db.* TO 'seafile'@'localhost';
+GRANT ALL PRIVILEGES ON seafile_db.* TO 'seafile'@'localhost';
+GRANT ALL PRIVILEGES ON seahub_db.* TO 'seafile'@'localhost';
+FLUSH PRIVILEGES;
+" 2>/dev/null || true
 
 # Wait for Redis to be ready
 echo "[INFO] Waiting for Redis to accept connections..."
