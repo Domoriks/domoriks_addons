@@ -116,9 +116,14 @@ export DB_PASSWORD=""
 export REDIS_HOST="127.0.0.1"
 export REDIS_PORT="6379"
 export TIME_ZONE="Etc/UTC"
-export SEAFILE_SERVER_HOSTNAME="${BOOTSTRAP_HOSTNAME}"
+# SEAFILE_SERVER_HOSTNAME: use host:port on restarts (setup skipped, no validation);
+# on first boot use bootstrap hostname only (setup validates hostname-only format).
+if [ "${IS_INITIALIZED}" -eq 1 ] && [ "${URL_PORT}" != "80" ] && [ "${URL_PORT}" != "443" ]; then
+    export SEAFILE_SERVER_HOSTNAME="${HOSTNAME_ONLY}:${URL_PORT}"
+else
+    export SEAFILE_SERVER_HOSTNAME="${BOOTSTRAP_HOSTNAME}"
+fi
 export SEAFILE_SERVER_PROTOCOL="http"
-export SEAFILE_PUBLISH_PORT="${URL_PORT}"   # external port from user's URL; upstream uses this to generate SERVICE_URL/FILE_SERVER_ROOT
 # New env-var API (post-Apr 2025 scripts) — export both old and new names
 export SEAFILE_MYSQL_DB_HOST="127.0.0.1"
 export SEAFILE_MYSQL_DB_PORT="3306"
