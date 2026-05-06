@@ -1,5 +1,5 @@
 name: "Seafile (Self-contained)"
-version: "0.2.25"
+version: "0.3.0"
 slug: "seafile"
 description: "Seafile CE with bundled MariaDB and Redis for LAN use"
 url: "https://github.com/Domoriks/domoriks_addons/tree/main/seafile"
@@ -9,10 +9,10 @@ init: false
 arch:
   - aarch64
 ports:
-  8000/tcp: 8000
+  80/tcp: 8000
   8082/tcp: 8082
 ports_description:
-  8000/tcp: "Seahub (Web UI)"
+  80/tcp: "Seahub (Web UI) — nginx listens on 80 internally, mapped to 8000"
   8082/tcp: "Seafile Fileserver (Desktop sync)"
 options:
   external_url: "http://127.0.0.1:8000"
