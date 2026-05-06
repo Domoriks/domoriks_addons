@@ -17,7 +17,19 @@ RUN mkdir -p /var/log/supervisor /var/log/mysql /var/run/mysqld /opt && \
     chown mysql:mysql /var/run/mysqld /var/log/mysql
 
 COPY rootfs /
-RUN chmod a+x /run.sh /opt/seafile-init.sh
+
+# Create nginx service wrapper to patch config for port 8000
+# (can't COPY to /etc/service directly as it exists in base image)
+RUN mkdir -p /etc/service/nginx && cat > /etc/service/nginx/run <<'NXSCRIPT'
+#!/bin/bash
+echo "[nginx] Patching config..." >&2
+find /etc/nginx -name "*.conf" 2>/dev/null | xargs sed -i 's/listen 80;/listen 8000;/g' 2>/dev/null || true
+find /etc/nginx -name "*.conf" 2>/dev/null | xargs sed -i 's/listen 80 /listen 8000 /g' 2>/dev/null || true
+echo "[nginx] Starting..." >&2
+exec /usr/sbin/nginx -g "daemon off;"
+NXSCRIPT
+
+RUN chmod a+x /run.sh /opt/seafile-init.sh /etc/service/nginx/run
 
 EXPOSE 8000 8082 3306 6379
 

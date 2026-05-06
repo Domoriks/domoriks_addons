@@ -1,6 +1,0 @@
-#!/bin/bash
-echo "[nginx] Patching config..." >&2
-find /etc/nginx -name "*.conf" 2>/dev/null | xargs sed -i 's/listen 80;/listen 8000;/g' 2>/dev/null || true
-find /etc/nginx -name "*.conf" 2>/dev/null | xargs sed -i 's/listen 80 /listen 8000 /g' 2>/dev/null || true
-echo "[nginx] Starting..." >&2
-exec /usr/sbin/nginx -g "daemon off;"
