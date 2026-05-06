@@ -16,6 +16,10 @@ for i in {1..30}; do
     sleep 1
 done
 
+# Ensure root@127.0.0.1 exists for TCP connections (mysql_install_db only creates root@localhost socket user)
+echo "[INFO] Creating TCP access for MariaDB root user..."
+mysql -u root --socket=/var/run/mysqld/mysqld.sock -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION; FLUSH PRIVILEGES;" 2>/dev/null || true
+
 # Wait for Redis to be ready
 echo "[INFO] Waiting for Redis to accept connections..."
 for i in {1..30}; do
