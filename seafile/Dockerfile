@@ -19,6 +19,6 @@ RUN mkdir -p /var/log/supervisor /var/log/mysql /var/run/mysqld /opt && \
 COPY rootfs /
 RUN chmod a+x /run.sh /opt/seafile-init.sh
 
-EXPOSE 8000 3306 6379
+EXPOSE 8000 8082 3306 6379
 
 CMD ["/run.sh"]
