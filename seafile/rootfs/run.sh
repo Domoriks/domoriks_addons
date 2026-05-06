@@ -19,6 +19,13 @@ if [ -f "${OPTIONS_FILE}" ] && command -v jq >/dev/null 2>&1; then
     [ -n "${OPT_ADMIN_PASSWORD}" ] && ADMIN_PASSWORD="${OPT_ADMIN_PASSWORD}"
 fi
 
+# Debug: log what options.json contains
+if [ -f "${OPTIONS_FILE}" ]; then
+    echo "[DEBUG] options.json found: $(cat ${OPTIONS_FILE})"
+else
+    echo "[DEBUG] options.json NOT FOUND at ${OPTIONS_FILE}"
+fi
+
 # Normalize external URL so generated links are valid.
 if [[ "${EXTERNAL_URL}" != http://* && "${EXTERNAL_URL}" != https://* ]]; then
     EXTERNAL_URL="http://${EXTERNAL_URL}"
@@ -81,8 +88,6 @@ export DB_PASSWORD=""
 export REDIS_HOST="127.0.0.1"
 export REDIS_PORT="6379"
 export TIME_ZONE="Etc/UTC"
-export SEAFILE_ADMIN_EMAIL="${ADMIN_EMAIL}"
-export SEAFILE_ADMIN_PASSWORD="${ADMIN_PASSWORD}"
 export SEAFILE_SERVER_HOSTNAME="${HOSTNAME_ONLY}"
 export SEAFILE_SERVER_PROTOCOL="http"
 export SEAFILE_PUBLISH_PORT="80"   # nginx internal port; HA maps this to 8000 externally
@@ -97,16 +102,16 @@ export SEAFILE_MYSQL_DB_SEAHUB_DB_NAME="seahub_db"
 export INIT_SEAFILE_MYSQL_ROOT_PASSWORD=""
 
 # Only bootstrap admin on first initialization.
-IS_INITIALIZED=0
+export IS_INITIALIZED=0
 if [ -d /shared/seafile/seafile-data ] || [ -d /data/seafile/seafile-data ]; then
-    IS_INITIALIZED=1
+    export IS_INITIALIZED=1
 fi
 
 if [ "${IS_INITIALIZED}" -eq 1 ]; then
-    export SEAFILE_ADMIN_EMAIL=""
-    export SEAFILE_ADMIN_PASSWORD=""
-    export INIT_SEAFILE_ADMIN_EMAIL=""
-    export INIT_SEAFILE_ADMIN_PASSWORD=""
+    unset SEAFILE_ADMIN_EMAIL
+    unset SEAFILE_ADMIN_PASSWORD
+    unset INIT_SEAFILE_ADMIN_EMAIL
+    unset INIT_SEAFILE_ADMIN_PASSWORD
 else
     export SEAFILE_ADMIN_EMAIL="${ADMIN_EMAIL}"
     export SEAFILE_ADMIN_PASSWORD="${ADMIN_PASSWORD}"
