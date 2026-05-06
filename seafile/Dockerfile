@@ -23,6 +23,9 @@ COPY rootfs /
 RUN mkdir -p /etc/service/nginx && cat > /etc/service/nginx/run <<'NXSCRIPT'
 #!/bin/bash
 echo "[nginx] Patching config..." >&2
+# Remove existing daemon directives to avoid duplicates
+sed -i '/^[[:space:]]*daemon/d' /etc/nginx/nginx.conf 2>/dev/null || true
+# Patch port 80 -> 8000 in all configs
 find /etc/nginx -name "*.conf" 2>/dev/null | xargs sed -i 's/listen 80;/listen 8000;/g' 2>/dev/null || true
 find /etc/nginx -name "*.conf" 2>/dev/null | xargs sed -i 's/listen 80 /listen 8000 /g' 2>/dev/null || true
 echo "[nginx] Starting..." >&2
