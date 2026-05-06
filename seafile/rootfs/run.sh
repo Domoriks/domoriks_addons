@@ -36,6 +36,16 @@ URL_NO_SCHEME="${EXTERNAL_URL#http://}"
 URL_NO_SCHEME="${URL_NO_SCHEME#https://}"
 HOST_WITH_PORT="${URL_NO_SCHEME%%/*}"
 HOSTNAME_ONLY="${HOST_WITH_PORT%%:*}"
+# Extract port from URL (default 80 for http, 443 for https)
+if echo "${HOST_WITH_PORT}" | grep -q ':'; then
+    URL_PORT="${HOST_WITH_PORT##*:}"
+else
+    if [[ "${EXTERNAL_URL}" == https://* ]]; then
+        URL_PORT="443"
+    else
+        URL_PORT="80"
+    fi
+fi
 
 if [ -z "${HOSTNAME_ONLY}" ]; then
     HOSTNAME_ONLY="127.0.0.1"
@@ -108,7 +118,7 @@ export REDIS_PORT="6379"
 export TIME_ZONE="Etc/UTC"
 export SEAFILE_SERVER_HOSTNAME="${BOOTSTRAP_HOSTNAME}"
 export SEAFILE_SERVER_PROTOCOL="http"
-export SEAFILE_PUBLISH_PORT="80"   # nginx internal port; HA maps this to 8000 externally
+export SEAFILE_PUBLISH_PORT="${URL_PORT}"   # external port from user's URL; upstream uses this to generate SERVICE_URL/FILE_SERVER_ROOT
 # New env-var API (post-Apr 2025 scripts) — export both old and new names
 export SEAFILE_MYSQL_DB_HOST="127.0.0.1"
 export SEAFILE_MYSQL_DB_PORT="3306"
