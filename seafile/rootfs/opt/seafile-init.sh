@@ -167,6 +167,27 @@ done
 # We fix both BEFORE enterpoint.sh starts so Seahub never sees wrong values.
 # For first boot the file doesn't exist yet; the background watcher handles that.
 
+patch_nginx_ipv6() {
+    local RELOADED=0
+    for CONF in \
+        /shared/nginx/conf/seafile.nginx.conf \
+        /etc/nginx/sites-enabled/seafile.conf \
+        /etc/nginx/conf.d/seafile.conf; do
+        if [ -f "$CONF" ]; then
+            if grep -q 'listen 80;' "$CONF" && ! grep -q 'listen \[::\]:80' "$CONF"; then
+                sed -i '/listen 80;/a\        listen [::]:80;' "$CONF"
+                echo "[nginx-ipv6] Patched $CONF — added listen [::]:80"
+                RELOADED=1
+            else
+                echo "[nginx-ipv6] $CONF already has IPv6 or no listen 80 — skipping"
+            fi
+        fi
+    done
+    if [ "$RELOADED" -eq 1 ] && pgrep -x nginx >/dev/null 2>&1; then
+        nginx -s reload 2>/dev/null && echo "[nginx-ipv6] nginx reloaded" || echo "[nginx-ipv6] nginx reload failed (ok if not started yet)"
+    fi
+}
+
 patch_url_config() {
     local srv="$1" fsr="$2"
     # 1) Patch config files (handles restart case where file already exists)
@@ -205,6 +226,7 @@ except Exception as e:
 }
 
 patch_url_config "${SERVICE_URL_VALUE}" "${FILE_SERVER_ROOT_VALUE}"
+patch_nginx_ipv6
 
 # ---- First-boot background watcher ------------------------------------
 # On first boot setup-seafile-mysql.py creates seahub_settings.py during startup.
@@ -254,6 +276,19 @@ except Exception as e:
             sleep 2
             continue
         fi
+        # Patch nginx for IPv6 (homeassistant.local mDNS resolves to IPv6)
+        for NGINX_CONF in \
+            /shared/nginx/conf/seafile.nginx.conf \
+            /etc/nginx/sites-enabled/seafile.conf \
+            /etc/nginx/conf.d/seafile.conf; do
+            if [ -f "$NGINX_CONF" ]; then
+                if grep -q 'listen 80;' "$NGINX_CONF" && ! grep -q 'listen \[::\]:80' "$NGINX_CONF"; then
+                    sed -i '/listen 80;/a\        listen [::]:80;' "$NGINX_CONF"
+                    echo "[url-watcher] nginx-ipv6: patched $NGINX_CONF"
+                    pgrep -x nginx >/dev/null 2>&1 && nginx -s reload 2>/dev/null && echo "[url-watcher] nginx reloaded" || true
+                fi
+            fi
+        done
         echo "[url-watcher] Done"
         exit 0
     fi
